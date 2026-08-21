@@ -80,6 +80,11 @@ kbd {
   text-align: center;
   background: rgba(11, 14, 20, 0.82);
   backdrop-filter: blur(3px);
+  /* The pause/game-over overlay is a child of .hud, which turns pointer
+     events OFF so the HUD never eats a click meant for the game — so they
+     must be turned back on here or the overlay's buttons are unclickable.
+     (The setup screen is unaffected: it mounts on <body> directly.) */
+  pointer-events: auto;
 }
 .overlay[hidden] { display: none; }
 .overlay h1 { margin: 0; font-size: 34px; letter-spacing: 0.02em; }
