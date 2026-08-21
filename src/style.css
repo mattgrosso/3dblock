@@ -1,0 +1,83 @@
+:root {
+  --ink: #e6ecf7;
+  --muted: #7c8aa5;
+  --panel: rgba(14, 19, 30, 0.78);
+  --edge: rgba(110, 168, 255, 0.22);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e14;
+  color: var(--ink);
+  font: 14px/1.45 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+
+.stage canvas { display: block; }
+
+/* The HUD floats over the canvas; pointer-events off so it never eats a click
+   meant for the game. */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  padding: 16px;
+  display: grid;
+  grid-template-areas:
+    "stats setup"
+    ".     ."
+    "keys  keys";
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 10px 14px;
+  backdrop-filter: blur(6px);
+  width: fit-content;
+}
+
+.panel--stats { grid-area: stats; display: flex; gap: 22px; }
+.panel--setup { grid-area: setup; justify-self: end; text-align: right; }
+.panel--keys  { grid-area: keys; justify-self: center; text-align: center; color: var(--muted); }
+
+.stat { display: flex; flex-direction: column; }
+.stat span {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.stat b { font-size: 22px; font-variant-numeric: tabular-nums; }
+
+.muted { color: var(--muted); font-size: 12px; }
+
+kbd {
+  background: rgba(110, 168, 255, 0.12);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  background: rgba(11, 14, 20, 0.82);
+  backdrop-filter: blur(3px);
+}
+.overlay[hidden] { display: none; }
+.overlay h1 { margin: 0; font-size: 34px; letter-spacing: 0.02em; }
+.overlay p { margin: 0; }

@@ -1,0 +1,211 @@
+import { Pit, type Placement } from './pit'
+import { extentOf, normalize, rotate, type Axis, type Cube, type Turn } from './rotation'
+import { piecesIn, type BlockSet, type Setup } from './sets'
+import type { PieceDef } from './pieces'
+import { levelFor, scoreFor, stepTimeFor } from './scoring'
+
+export type Phase = 'playing' | 'over'
+
+export interface FallingPiece {
+  readonly def: PieceDef
+  cubes: Cube[]
+  x: number
+  y: number
+  z: number
+  /** Where the piece was when a hard drop began; null until one does. */
+  dropFrom: number | null
+}
+
+export interface ClearEvent {
+  readonly layers: readonly number[]
+  readonly gained: number
+  readonly pitEmptied: boolean
+}
+
+export interface GameOptions extends Setup {
+  readonly startLevel?: number
+  /** Injectable so tests can make piece selection deterministic. */
+  readonly random?: () => number
+}
+
+export class Game {
+  readonly pit: Pit
+  readonly set: BlockSet
+  private readonly bag: readonly PieceDef[]
+  private readonly random: () => number
+  private readonly startLevel: number
+
+  piece!: FallingPiece
+  next: PieceDef
+  score = 0
+  cubesPlayed = 0
+  layersCleared = 0
+  level: number
+  phase: Phase = 'playing'
+  /** Set on the frame a clear happens, so the renderer can react to it. */
+  lastClear: ClearEvent | null = null
+
+  private sinceStep = 0
+
+  constructor(options: GameOptions) {
+    this.pit = new Pit(options.width, options.height, options.depth)
+    this.set = options.set
+    this.bag = piecesIn(options.set)
+    this.random = options.random ?? Math.random
+    this.startLevel = options.startLevel ?? 0
+    this.level = this.startLevel
+    this.next = this.pick()
+    this.spawn()
+  }
+
+  private pick(): PieceDef {
+    const index = Math.min(this.bag.length - 1, Math.floor(this.random() * this.bag.length))
+    return this.bag[index]!
+  }
+
+  private placement(piece: FallingPiece = this.piece): Placement {
+    return { cubes: piece.cubes, x: piece.x, y: piece.y, z: piece.z }
+  }
+
+  private spawn(): void {
+    const def = this.next
+    this.next = this.pick()
+    const cubes = normalize(def.cubes.map((c) => [...c] as unknown as Cube))
+    const size = extentOf(cubes)
+
+    const piece: FallingPiece = {
+      def,
+      cubes,
+      // Centred in the mouth, biased the same way the original biases it.
+      x: Math.floor((this.pit.width - size.width) / 2),
+      y: Math.floor((this.pit.height - size.height) / 2),
+      // Starts in the top layer of the pit, not floating outside it - a piece
+      // in front of the mouth would loom over the camera and read as much
+      // bigger than it is.
+      z: 0,
+      dropFrom: null,
+    }
+    this.piece = piece
+
+    // Nowhere to put it means the pit is full.
+    if (this.pit.collides(this.placement(piece))) this.phase = 'over'
+  }
+
+  private tryMove(dx: number, dy: number, dz: number): boolean {
+    const candidate = {
+      ...this.placement(),
+      x: this.piece.x + dx,
+      y: this.piece.y + dy,
+      z: this.piece.z + dz,
+    }
+    if (this.pit.collides(candidate)) return false
+    this.piece.x += dx
+    this.piece.y += dy
+    this.piece.z += dz
+    return true
+  }
+
+  move(dx: number, dy: number): boolean {
+    if (this.phase !== 'playing') return false
+    return this.tryMove(dx, dy, 0)
+  }
+
+  rotate(axis: Axis, dir: Turn): boolean {
+    if (this.phase !== 'playing') return false
+    const rotated = rotate(this.piece.cubes, axis, dir)
+    const candidate = { ...this.placement(), cubes: rotated }
+
+    // Rotating near a wall would otherwise just fail; nudge the piece back
+    // inside first, which is what makes rotation feel usable in a tight pit.
+    for (const [dx, dy] of NUDGES) {
+      const nudged = { ...candidate, x: candidate.x + dx, y: candidate.y + dy }
+      if (!this.pit.collides(nudged)) {
+        this.piece.cubes = rotated
+        this.piece.x = nudged.x
+        this.piece.y = nudged.y
+        return true
+      }
+    }
+    return false
+  }
+
+  /** One step down. Returns false if the piece locked instead of moving. */
+  stepDown(): boolean {
+    if (this.phase !== 'playing') return false
+    if (this.tryMove(0, 0, 1)) return true
+    this.lock()
+    return false
+  }
+
+  hardDrop(): void {
+    if (this.phase !== 'playing') return
+    this.piece.dropFrom = this.dropPosition()
+    this.piece.z += this.pit.dropDistance(this.placement())
+    this.lock()
+  }
+
+  /** Cells between the piece and the floor - the original's `dropPos`. */
+  private dropPosition(): number {
+    const size = extentOf(this.piece.cubes)
+    return Math.max(0, this.pit.depth - 1 - (this.piece.z + size.depth - 1))
+  }
+
+  /** Where the piece would land, for the guide markers. */
+  landingZ(): number {
+    return this.piece.z + this.pit.dropDistance(this.placement())
+  }
+
+  private lock(): void {
+    this.pit.lock(this.placement(), this.piece.def.id + 1)
+    this.cubesPlayed += this.piece.def.cubes.length
+
+    const layers = this.pit.fullLayers()
+    if (layers.length) this.pit.clearLayers(layers)
+    const pitEmptied = layers.length > 0 && this.pit.isEmpty()
+
+    const gained = scoreFor({
+      piece: this.piece.def,
+      set: this.set,
+      level: this.level,
+      depth: this.pit.depth,
+      layersCleared: layers.length,
+      dropped: this.piece.dropFrom !== null,
+      dropPosition: this.piece.dropFrom ?? 0,
+      pitEmptied,
+    })
+
+    this.score += gained
+    this.layersCleared += layers.length
+    this.lastClear = layers.length || pitEmptied ? { layers, gained, pitEmptied } : null
+    this.level = levelFor(this.startLevel, this.cubesPlayed, this.pit.width, this.pit.height)
+
+    this.spawn()
+  }
+
+  get stepTime(): number {
+    return stepTimeFor(this.level)
+  }
+
+  /** Advance by `dt` seconds. */
+  update(dt: number): void {
+    if (this.phase !== 'playing') return
+    this.sinceStep += dt
+    while (this.sinceStep >= this.stepTime && this.phase === 'playing') {
+      this.sinceStep -= this.stepTime
+      this.stepDown()
+    }
+  }
+}
+
+// Tried in order: no nudge first, so a rotation that already fits never moves.
+const NUDGES: ReadonlyArray<readonly [number, number]> = [
+  [0, 0],
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+  [-2, 0],
+  [2, 0],
+  [0, -2],
+  [0, 2],
+]
