@@ -143,6 +143,31 @@ describe('Game', () => {
     expect(game.move(-1, 0)).toBe(false)
   })
 
+  // The guard is on the game rather than on whatever has a key bound to it,
+  // so a second input path can't accidentally bypass it.
+  it('ignores every input while paused, and resumes cleanly', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12, random: always(0) })
+    const { x, y, z } = game.piece
+
+    expect(game.togglePause()).toBe(true)
+    expect(game.move(1, 0)).toBe(false)
+    expect(game.rotate('x', 1)).toBe(false)
+    game.hardDrop()
+    game.update(60)
+    expect(game.piece).toMatchObject({ x, y, z })
+    expect(game.cubesPlayed).toBe(0)
+
+    expect(game.togglePause()).toBe(false)
+    expect(game.move(1, 0)).toBe(true)
+  })
+
+  it('will not pause a finished game', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 1, height: 1, depth: 6, random: always(1) })
+    game.phase = 'over'
+    expect(game.togglePause()).toBe(false)
+    expect(game.paused).toBe(false)
+  })
+
   it('reports where the current piece would land', () => {
     const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 8, random: always(0) })
     expect(game.landingZ()).toBe(7)

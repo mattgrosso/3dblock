@@ -42,6 +42,13 @@ export class Game {
   layersCleared = 0
   level: number
   phase: Phase = 'playing'
+  /**
+   * Pause lives on the game, not on the UI that happens to have a key bound to
+   * it. Anything that can move a piece - keyboard now, touch or a bot later -
+   * has to go through these methods, so the guard belongs where they are
+   * rather than in each caller.
+   */
+  paused = false
   /** Set on the frame a clear happens, so the renderer can react to it. */
   lastClear: ClearEvent | null = null
 
@@ -105,13 +112,22 @@ export class Game {
     return true
   }
 
+  private get accepting(): boolean {
+    return this.phase === 'playing' && !this.paused
+  }
+
+  togglePause(): boolean {
+    if (this.phase === 'playing') this.paused = !this.paused
+    return this.paused
+  }
+
   move(dx: number, dy: number): boolean {
-    if (this.phase !== 'playing') return false
+    if (!this.accepting) return false
     return this.tryMove(dx, dy, 0)
   }
 
   rotate(axis: Axis, dir: Turn): boolean {
-    if (this.phase !== 'playing') return false
+    if (!this.accepting) return false
     const rotated = rotate(this.piece.cubes, axis, dir)
     const candidate = { ...this.placement(), cubes: rotated }
 
@@ -131,14 +147,14 @@ export class Game {
 
   /** One step down. Returns false if the piece locked instead of moving. */
   stepDown(): boolean {
-    if (this.phase !== 'playing') return false
+    if (!this.accepting) return false
     if (this.tryMove(0, 0, 1)) return true
     this.lock()
     return false
   }
 
   hardDrop(): void {
-    if (this.phase !== 'playing') return
+    if (!this.accepting) return
     this.piece.dropFrom = this.dropPosition()
     this.piece.z += this.pit.dropDistance(this.placement())
     this.lock()
@@ -188,9 +204,9 @@ export class Game {
 
   /** Advance by `dt` seconds. */
   update(dt: number): void {
-    if (this.phase !== 'playing') return
+    if (!this.accepting) return
     this.sinceStep += dt
-    while (this.sinceStep >= this.stepTime && this.phase === 'playing') {
+    while (this.sinceStep >= this.stepTime && this.accepting) {
       this.sinceStep -= this.stepTime
       this.stepDown()
     }
