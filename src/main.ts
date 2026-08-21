@@ -8,6 +8,7 @@ import { setupBugReport } from './ui/bugreport'
 import { DEFAULT_THEME, resolveTheme } from './render/themes'
 import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
+import { cleanName, fetchTop, qualifies, rememberName, rememberedName, submitScore, type GlobalEntry } from './game/leaderboard'
 import { setupInstall } from './install'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -38,6 +39,16 @@ hud.innerHTML = `
     <h1 id="overlay-title">Pit full</h1>
     <p id="final"></p>
     <table class="scores" id="scores"></table>
+    <!-- The global board for this setup, game-over only. Local scores answer
+         "my best here"; this answers "anyone's best here". -->
+    <div id="global-board" hidden>
+      <div class="global-board__title">World top 10</div>
+      <table class="scores" id="global-scores"></table>
+      <form id="post-score" hidden>
+        <input id="player-name" maxlength="20" autocomplete="nickname" placeholder="Your name">
+        <button type="submit" id="post-button">Post score</button>
+      </form>
+    </div>
     <!-- Buttons, not just key hints. On a phone the overlay covers the touch
          pad, so a keyboard-only "press N" is a dead end with no way out. -->
     <div class="overlay__actions">
@@ -94,7 +105,51 @@ const togglePause = (): void => {
     el('overlay-title').textContent = 'Paused'
     el('final').textContent = ''
     el('overlay-primary').textContent = 'Resume'
+    el('global-board').hidden = true // game-over only
     renderScoreTable()
+  }
+}
+
+// ---- The global leaderboard (game-over overlay only) ----
+
+let globalBoard: GlobalEntry[] = []
+/** The just-finished run, while its post form is showing. */
+let postable: ScoreEntry | null = null
+
+const renderGlobalTable = (highlight?: { name: string; score: number }): void => {
+  const rows = globalBoard.map((entry, i) => {
+    const mine = highlight && entry.name === highlight.name && entry.score === highlight.score
+    return `<tr${mine ? ' class="mine"' : ''}><td>${i + 1}</td><td class="global-name"></td><td>${entry.score}</td><td class="muted">lvl ${entry.level}</td></tr>`
+  }).join('')
+  el('global-scores').innerHTML = rows || '<tr><td class="muted">No scores posted yet — be first</td></tr>'
+  // Names are other people's text: they go in as textContent, never markup.
+  const nameCells = el('global-scores').querySelectorAll('.global-name')
+  globalBoard.forEach((entry, i) => { nameCells[i]!.textContent = entry.name })
+}
+
+const showGlobalBoard = async (entry: ScoreEntry): Promise<void> => {
+  const board = el('global-board')
+  board.hidden = true
+  el('post-score').hidden = true
+  postable = null
+
+  // Offline or refused: the overlay simply stays local, as before.
+  try {
+    globalBoard = await fetchTop(config)
+  } catch {
+    return
+  }
+  // A slow fetch can outlive the screen it was for.
+  if (game.phase !== 'over') return
+
+  renderGlobalTable()
+  board.hidden = false
+
+  if (qualifies(globalBoard, entry.score)) {
+    postable = entry
+    const input = el('player-name') as HTMLInputElement
+    input.value = rememberedName()
+    el('post-score').hidden = false
   }
 }
 
@@ -121,6 +176,7 @@ const start = (chosen: GameConfig): void => {
     + (config.startLevel ? ` · from level ${config.startLevel}` : '')
   el('best').textContent = String(bestOf(scores))
   el('overlay').hidden = true
+  el('global-board').hidden = true
 
   if (import.meta.env.DEV) Object.assign(window, { game, renderer })
 }
@@ -197,6 +253,38 @@ el('overlay-setup').addEventListener('click', () => {
   openSetup(config, start)
 })
 
+el('post-score').addEventListener('submit', (event) => {
+  event.preventDefault()
+  const entry = postable
+  const name = cleanName((el('player-name') as HTMLInputElement).value)
+  if (!entry || !name) return
+
+  const button = el('post-button') as HTMLButtonElement
+  button.disabled = true
+  button.textContent = 'Posting…'
+
+  submitScore(config, { name, score: entry.score, level: entry.level, layers: entry.layers }).then(
+    async () => {
+      rememberName(name)
+      postable = null
+      el('post-score').hidden = true
+      // Re-read rather than splice locally, so what's shown is what the
+      // board actually holds - including anyone who posted meanwhile.
+      try {
+        globalBoard = await fetchTop(config)
+      } catch { /* the local render below still shows the pre-post board */ }
+      renderGlobalTable({ name, score: entry.score })
+      button.disabled = false
+      button.textContent = 'Post score'
+    },
+    () => {
+      // Keep the form; the score is still theirs to post on a retry.
+      button.disabled = false
+      button.textContent = 'Try again'
+    },
+  )
+})
+
 el('mute').addEventListener('click', () => {
   void sound.unlock()
   renderMute(sound.toggleMute())
@@ -256,6 +344,7 @@ const frame = (dt: number): void => {
     el('final').textContent =
       `${game.score} points · level ${game.level} · ${game.layersCleared} layers`
     renderScoreTable(entry)
+    void showGlobalBoard(entry)
     el('overlay').hidden = false
   }
 }

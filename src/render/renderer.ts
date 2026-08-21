@@ -189,9 +189,20 @@ export class Renderer {
     // Wireframe while it falls, exactly as the original draws it: head-on, a
     // solid piece would sit precisely between the camera and the spot it is
     // about to land on. It turns solid the moment it locks.
+    //
+    // The fill is GLASS, not air (bug report: "glass is clear but it does
+    // have a visual effect on what you see through it"): a heavily darkened
+    // tint of the piece colour at real opacity, so whatever is behind the
+    // piece dims through it and the volume reads as a body with depth, while
+    // the landing spot stays perfectly visible.
     const faces = new THREE.Mesh(
       solid,
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, depthWrite: false }),
+      new THREE.MeshBasicMaterial({
+        color: color.clone().multiplyScalar(0.25),
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+      }),
     )
     faces.position.copy(this.toWorld(piece.x, piece.y, piece.z))
     this.falling.add(faces)

@@ -121,6 +121,13 @@ describe('Game', () => {
   // rotating it near a wall actually needs a kick.
   const BAR = 2
 
+  // A hard drop no longer locks instantly - the slide window (lockDelay) has
+  // to run out first. This is the "drop it and let it settle" gesture.
+  const slam = (game: Game) => {
+    game.hardDrop()
+    game.update(game.lockDelay)
+  }
+
   it('starts playable with a piece in the top layer of the pit', () => {
     const game = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12 })
     expect(game.phase).toBe('playing')
@@ -131,7 +138,7 @@ describe('Game', () => {
   it('locks a piece at the floor and spawns the next', () => {
     const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 6, random: always(0) })
     const first = game.piece
-    game.hardDrop()
+    slam(game)
     expect(game.piece).not.toBe(first)
     expect(game.cubesPlayed).toBe(1)
     expect([...game.pit.filled()]).toHaveLength(1)
@@ -141,7 +148,7 @@ describe('Game', () => {
   it('clears a layer and scores for it', () => {
     // A 1x1 pit means a single cube fills a whole layer.
     const game = new Game({ name: 't', set: 'FLAT', width: 1, height: 1, depth: 6, random: always(0) })
-    game.hardDrop()
+    slam(game)
     expect(game.layersCleared).toBe(1)
     expect(game.pit.isEmpty()).toBe(true)
   })
@@ -157,7 +164,7 @@ describe('Game', () => {
       }
       game.pit.set(1, 1, z, 0)
     }
-    game.hardDrop()
+    slam(game)
     expect(game.pit.fullLayers()).toEqual([])
     expect(game.phase).toBe('over')
   })
@@ -231,8 +238,71 @@ describe('Game', () => {
   })
 })
 
+describe('the slide window (lock delay)', () => {
+  const always = (index: number, bagSize = 8) => () => (index + 0.5) / bagSize
+
+  it('leaves a dropped piece unlocked until the window runs out', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 6, random: always(0) })
+    game.hardDrop()
+    expect(game.cubesPlayed).toBe(0)
+    game.update(game.lockDelay * 0.9)
+    expect(game.cubesPlayed).toBe(0)
+    game.update(game.lockDelay * 0.2)
+    expect(game.cubesPlayed).toBe(1)
+  })
+
+  it('lets a landed piece slide sideways, and the slide re-opens the window', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 6, random: always(0) })
+    game.hardDrop()
+    game.update(game.lockDelay * 0.9)
+    expect(game.move(1, 0)).toBe(true)
+    // Without the reset this would lock 10% of a window later.
+    game.update(game.lockDelay * 0.5)
+    expect(game.cubesPlayed).toBe(0)
+    game.update(game.lockDelay)
+    const locked = [...game.pit.filled()]
+    expect(locked).toHaveLength(1)
+    expect(locked[0]!.x).toBe(2) // it locked where it slid to
+  })
+
+  it('commits immediately on a second hard drop, keeping the drop bonus', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 12, random: always(0) })
+    game.hardDrop() // to the floor, window opens
+    const dropFrom = game.piece.dropFrom
+    expect(dropFrom).toBeGreaterThan(0)
+    game.hardDrop() // the commit
+    expect(game.cubesPlayed).toBe(1)
+    // The confirming press must not have zeroed the height the bonus pays on
+    // - a piece that fell 11 cells scores far more than one that fell 0.
+    const control = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 12, random: always(0) })
+    control.piece.z = control.pit.depth - 1
+    control.hardDrop()
+    expect(game.score).toBeGreaterThan(control.score)
+  })
+
+  it('shrinks as the levels speed up, but never to nothing', () => {
+    const slow = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12, startLevel: 0 })
+    const fast = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12, startLevel: 8 })
+    expect(fast.lockDelay).toBeLessThan(slow.lockDelay)
+    expect(fast.lockDelay).toBeGreaterThanOrEqual(0.1)
+    expect(slow.lockDelay).toBeLessThanOrEqual(0.5)
+  })
+
+  it('does not lock a gravity-landed piece until its own window passes', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 1, height: 1, depth: 2, random: always(0) })
+    game.update(game.stepTime + 0.001) // lands on the floor by falling
+    expect(game.cubesPlayed).toBe(0)
+    game.update(game.lockDelay)
+    expect(game.layersCleared).toBe(1) // 1x1 pit: locking clears the layer
+  })
+})
+
 describe('Game events', () => {
   const always = (index: number, bagSize = 8) => () => (index + 0.5) / bagSize
+  const slam = (game: Game) => {
+    game.hardDrop()
+    game.update(game.lockDelay)
+  }
 
   const record = (game: Game): string[] => {
     const seen: string[] = []
@@ -245,7 +315,7 @@ describe('Game events', () => {
     // empties the pit all at once.
     const game = new Game({ name: 't', set: 'FLAT', width: 1, height: 1, depth: 6, random: always(0) })
     const seen = record(game)
-    game.hardDrop()
+    slam(game)
     expect(seen).toContain('lock')
     expect(seen).toContain('flush')
     // flush and clear are exclusive: emptying the pit is the bigger event.
@@ -259,7 +329,7 @@ describe('Game events', () => {
     game.pit.set(1, 0, 5, 5) // half the floor layer, waiting to be completed
     game.pit.set(1, 0, 2, 5) // a leftover that no clear will reach
     const seen = record(game)
-    game.hardDrop()
+    slam(game)
     expect(seen).toContain('clear')
     expect(seen).not.toContain('flush')
     expect(game.pit.isEmpty()).toBe(false)
@@ -294,7 +364,7 @@ describe('Game events', () => {
       game.pit.set(1, 1, z, 0)
     }
     const seen = record(game)
-    game.hardDrop()
+    slam(game)
     expect(seen.filter((e) => e === 'gameOver')).toHaveLength(1)
   })
 })

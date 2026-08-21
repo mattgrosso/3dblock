@@ -61,6 +61,8 @@ export class Game {
   onEvent: ((event: GameEvent) => void) | null = null
 
   private sinceStep = 0
+  /** Seconds the piece has been resting on its support. Locks at lockDelay. */
+  private restTime = 0
 
   constructor(options: GameOptions) {
     this.pit = new Pit(options.width, options.height, options.depth)
@@ -101,6 +103,7 @@ export class Game {
       dropFrom: null,
     }
     this.piece = piece
+    this.restTime = 0
 
     // Nowhere to put it means the pit is full.
     if (this.pit.collides(this.placement(piece))) this.phase = 'over'
@@ -129,9 +132,29 @@ export class Game {
     return this.paused
   }
 
+  /** True when the piece is resting on the floor or the stack. */
+  private grounded(): boolean {
+    return this.pit.collides({ ...this.placement(), z: this.piece.z + 1 })
+  }
+
+  /**
+   * The slide window (bug report: "there should be a slight delay before it
+   * locks in so that I can slide it across the bottom into gaps... the
+   * faster the pieces are dropping, the shorter the delay"). A slice of the
+   * gravity step so it scales with the level, clamped so it is generous
+   * early and still finite at speed.
+   */
+  get lockDelay(): number {
+    return Math.min(0.5, Math.max(0.1, this.stepTime * 0.35))
+  }
+
   move(dx: number, dy: number): boolean {
     if (!this.accepting) return false
-    return this.tryMove(dx, dy, 0)
+    const moved = this.tryMove(dx, dy, 0)
+    // A successful slide re-opens the window - that is the whole point of
+    // the delay. (Stalling forever this way is possible and fine.)
+    if (moved) this.restTime = 0
+    return moved
   }
 
   rotate(axis: Axis, dir: Turn): boolean {
@@ -164,22 +187,36 @@ export class Game {
     this.piece.x = shifted.x
     this.piece.y = shifted.y
     this.piece.z = shifted.z
+    this.restTime = 0
     return true
   }
 
-  /** One step down. Returns false if the piece locked instead of moving. */
+  /** One step down. Returns false if the piece is resting instead. */
   stepDown(): boolean {
     if (!this.accepting) return false
-    if (this.tryMove(0, 0, 1)) return true
-    this.lock()
-    return false
+    return this.tryMove(0, 0, 1)
   }
 
+  /**
+   * Drop to the floor - but don't lock yet. The slide window applies to a
+   * hard drop too, by request: "This should even be true when I hit the
+   * space bar." A second press while resting commits immediately, so space
+   * space is still the fast way to slam a piece home.
+   */
   hardDrop(): void {
     if (!this.accepting) return
+    const distance = this.pit.dropDistance(this.placement())
+
+    if (distance === 0) {
+      // Already resting: this press is the commit. dropFrom is left alone so
+      // a real drop's height bonus survives the confirming press.
+      this.lock()
+      return
+    }
+
     this.piece.dropFrom = this.dropPosition()
-    this.piece.z += this.pit.dropDistance(this.placement())
-    this.lock()
+    this.piece.z += distance
+    this.restTime = 0
   }
 
   /** Cells between the piece and the floor - the original's `dropPos`. */
@@ -239,10 +276,22 @@ export class Game {
   /** Advance by `dt` seconds. */
   update(dt: number): void {
     if (!this.accepting) return
+
+    // Resting on something: the slide window runs instead of gravity.
+    if (this.grounded()) {
+      this.sinceStep = 0
+      this.restTime += dt
+      if (this.restTime >= this.lockDelay) this.lock()
+      return
+    }
+
+    this.restTime = 0
     this.sinceStep += dt
     while (this.sinceStep >= this.stepTime && this.accepting) {
       this.sinceStep -= this.stepTime
-      this.stepDown()
+      // Landing mid-burst starts the rest window on the next frame rather
+      // than swallowing the remainder as instant lock time.
+      if (!this.stepDown()) break
     }
   }
 }
