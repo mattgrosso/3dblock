@@ -74,7 +74,7 @@ stamp.textContent =
 stamp.title = `Built ${new Date(__BUILD_TIME__).toLocaleString()}`
 document.body.appendChild(stamp)
 
-let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME }
+let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME, guide: false }
 let game: Game
 let renderer: Renderer
 let preview: PiecePreview
@@ -165,7 +165,7 @@ const start = (chosen: GameConfig): void => {
   game.onEvent = (event) => sound.handle(event)
   // Resolved per game, which is what makes 'Random' a new look every round.
   const theme = resolveTheme(config.theme)
-  renderer = new Renderer(stage, game, theme)
+  renderer = new Renderer(stage, game, theme, config.guide)
   preview = new PiecePreview(el('preview'), theme)
   scores = loadScores(config)
   recorded = false
@@ -215,7 +215,7 @@ window.addEventListener('keydown', (event) => {
   // Not 'S' - that is already rotate-Y.
   if (key === 'escape') { openSetup(config, start); return }
   if (key >= '1' && key <= String(SETUPS.length)) {
-    start({ ...SETUPS[Number(key) - 1]!, startLevel: 0, theme: config.theme })
+    start({ ...SETUPS[Number(key) - 1]!, startLevel: 0, theme: config.theme, guide: config.guide })
     return
   }
 

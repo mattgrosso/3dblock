@@ -21,12 +21,14 @@ export class Renderer {
   private readonly guide: THREE.Group
   private readonly game: Game
   private readonly theme: Theme
+  private readonly showGuide: boolean
   /** cubesPlayed as of the last locked-stack rebuild; -1 forces the first. */
   private lockedAt = -1
 
-  constructor(canvasParent: HTMLElement, game: Game, theme: Theme) {
+  constructor(canvasParent: HTMLElement, game: Game, theme: Theme, showGuide = false) {
     this.game = game
     this.theme = theme
+    this.showGuide = showGuide
     const { width, height, depth } = game.pit
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -172,38 +174,6 @@ export class Renderer {
     }
   }
 
-  /**
-   * The glass look, second half (bug report follow-up: "I want the far
-   * edges of the active block to be a bit faded when I see them through the
-   * glass"): the outline gets per-vertex colour that fades toward the
-   * background the deeper into the piece a vertex sits. Near edges stay
-   * bright, the far side reads as seen THROUGH the body — and an edge that
-   * runs front-to-back gets the gradient along its length for free, because
-   * line vertices interpolate. A flat piece has no depth to fade across and
-   * comes out uniformly bright.
-   */
-  private fadeFarEdges(outline: THREE.BufferGeometry, color: THREE.Color): void {
-    const positions = outline.getAttribute('position')
-    let near = -Infinity
-    for (let i = 0; i < positions.count; i += 1) {
-      // Camera looks down -z: the biggest z is the piece's nearest face.
-      if (positions.getZ(i) > near) near = positions.getZ(i)
-    }
-
-    // Attenuate per CELL of glass in front of the vertex, like real
-    // material thickness, rather than normalising to the piece's own depth
-    // - a one-cell-thick piece should fade "a bit", not as hard as the far
-    // tip of a five-cell bar. Capped so even that tip stays legible.
-    const background = new THREE.Color(this.theme.background)
-    const colors: number[] = []
-    for (let i = 0; i < positions.count; i += 1) {
-      const cellsDeep = near - positions.getZ(i)
-      const faded = color.clone().lerp(background, Math.min(0.75, cellsDeep * 0.35))
-      colors.push(faded.r, faded.g, faded.b)
-    }
-    outline.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-  }
-
   private syncFalling(): void {
     this.clearGroup(this.falling)
     this.clearGroup(this.guide)
@@ -225,38 +195,69 @@ export class Renderer {
     // The fill is GLASS, not air (bug report: "glass is clear but it does
     // have a visual effect on what you see through it"): a heavily darkened
     // tint of the piece colour at real opacity, so whatever is behind the
-    // piece dims through it and the volume reads as a body with depth, while
-    // the landing spot stays perfectly visible.
+    // piece dims through it. It also WRITES DEPTH, which is what the two
+    // edge passes below test against — and because everything behind the
+    // piece has an earlier renderOrder, writing depth this late hides
+    // nothing that matters. polygonOffset nudges the faces back a hair so
+    // the edges lying ON them win the depth test cleanly.
     const faces = new THREE.Mesh(
       solid,
       new THREE.MeshBasicMaterial({
         color: color.clone().multiplyScalar(0.25),
         transparent: true,
         opacity: 0.4,
-        depthWrite: false,
+        depthWrite: true,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
       }),
     )
     faces.position.copy(this.toWorld(piece.x, piece.y, piece.z))
+    faces.renderOrder = 1
     this.falling.add(faces)
 
-    // The landing marker clones the outline BEFORE the fade paints it: the
-    // marker is flat information, not a body, so it stays uniform.
-    const landingOutline = outline.clone()
-
-    this.fadeFarEdges(outline, color)
-    const edges = new THREE.LineSegments(
+    // Hidden-line glass (bug report follow-up: "It needs to just be the
+    // parts of the edge that are actually being seen through the block"):
+    // the same outline is drawn twice against the body's depth. The pass
+    // that survives the depth test is the directly visible portion, full
+    // strength; the pass that only draws where it LOSES the depth test
+    // (depthFunc Greater) is exactly the portion behind the glass, faded.
+    // The split happens per fragment, so one edge can be bright where it
+    // emerges and faint where the body covers it. Both are `transparent`
+    // even at full opacity - that keeps them in the transparent render
+    // list, AFTER the fill has written the depth they test against.
+    const edgeFront = new THREE.LineSegments(
       outline,
-      new THREE.LineBasicMaterial({ vertexColors: true }),
+      new THREE.LineBasicMaterial({ color, transparent: true }),
     )
-    edges.position.copy(faces.position)
-    this.falling.add(edges)
+    edgeFront.position.copy(faces.position)
+    edgeFront.renderOrder = 2
+    this.falling.add(edgeFront)
 
-    const landing = new THREE.LineSegments(
-      landingOutline,
-      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 }),
+    const edgeBehind = new THREE.LineSegments(
+      outline,
+      new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.25,
+        depthFunc: THREE.GreaterDepth,
+        depthWrite: false,
+      }),
     )
-    landing.position.copy(this.toWorld(piece.x, piece.y, this.game.landingZ()))
-    this.guide.add(landing)
+    edgeBehind.position.copy(faces.position)
+    edgeBehind.renderOrder = 3
+    this.falling.add(edgeBehind)
+
+    // Off by default, on request: knowing where the piece lands is half the
+    // game in the original, and the marker gives it away.
+    if (this.showGuide) {
+      const landing = new THREE.LineSegments(
+        outline.clone(),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 }),
+      )
+      landing.position.copy(this.toWorld(piece.x, piece.y, this.game.landingZ()))
+      this.guide.add(landing)
+    }
   }
 
   private resize(): void {

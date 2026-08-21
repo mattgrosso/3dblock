@@ -59,6 +59,14 @@ describe('normalizeConfig', () => {
     }
   })
 
+  // The landing preview is OFF unless someone explicitly turned it on —
+  // knowing where a piece lands is half the game.
+  it('defaults the landing preview off, and only an explicit true turns it on', () => {
+    expect(normalizeConfig({}).guide).toBe(false)
+    expect(normalizeConfig({ guide: 'yes' }).guide).toBe(false)
+    expect(normalizeConfig({ guide: true }).guide).toBe(true)
+  })
+
   // Theme names change; whatever is stored has to resolve to something the
   // renderer can actually paint with.
   it('keeps a known theme and replaces an unknown one', () => {

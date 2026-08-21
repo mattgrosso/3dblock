@@ -6,11 +6,14 @@ export interface GameConfig extends Setup {
   readonly startLevel: number
   /** A theme name, or 'Random' for a fresh one each game. */
   readonly theme: string
+  /** Show the landing marker. Off by default - knowing where a piece lands
+   *  is half the game, and the marker gives it away. */
+  readonly guide: boolean
 }
 
 const STORAGE_KEY = '3dblock.config'
 
-const DEFAULT_CONFIG: GameConfig = { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME }
+const DEFAULT_CONFIG: GameConfig = { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME, guide: false }
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, Math.round(value)))
@@ -24,7 +27,8 @@ export const normalizeConfig = (raw: unknown): GameConfig => {
   const depth = clamp(Number(c.depth) || 12, PIT_LIMITS.minDepth, PIT_LIMITS.maxDepth)
   const startLevel = clamp(Number(c.startLevel) || 0, 0, MAX_LEVEL)
   const theme = THEME_CHOICES.includes(c.theme as string) ? (c.theme as string) : DEFAULT_THEME
-  return { name: nameFor({ set, width, height, depth }), set, width, height, depth, startLevel, theme }
+  const guide = c.guide === true
+  return { name: nameFor({ set, width, height, depth }), set, width, height, depth, startLevel, theme, guide }
 }
 
 /**
@@ -115,6 +119,14 @@ export const openSetup = (
       </label>
 
       <label class="setup__row">
+        <span>Landing preview</span>
+        <select id="setup-guide">
+          <option value="off"${config.guide ? '' : ' selected'}>Off</option>
+          <option value="on"${config.guide ? ' selected' : ''}>On</option>
+        </select>
+      </label>
+
+      <label class="setup__row">
         <span>Colors</span>
         <select id="setup-theme">
           ${THEME_CHOICES.map(
@@ -137,6 +149,7 @@ export const openSetup = (
   const depthSel = sel<HTMLSelectElement>('setup-depth')
   const levelSel = sel<HTMLSelectElement>('setup-level')
   const themeSel = sel<HTMLSelectElement>('setup-theme')
+  const guideSel = sel<HTMLSelectElement>('setup-guide')
 
   const read = (): GameConfig =>
     normalizeConfig({
@@ -146,6 +159,7 @@ export const openSetup = (
       depth: Number(depthSel.value),
       startLevel: Number(levelSel.value),
       theme: themeSel.value,
+      guide: guideSel.value === 'on',
     })
 
   // Both of these surprise people, so say them out loud rather than letting
