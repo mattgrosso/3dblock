@@ -22,8 +22,17 @@ yarn build      # typecheck + production bundle
 | <kbd>A</kbd> / <kbd>S</kbd> | rotate around Y |
 | <kbd>Z</kbd> / <kbd>X</kbd> | rotate around Z |
 | <kbd>Space</kbd> | hard drop — worth far more points the higher you drop from |
+| <kbd>P</kbd> | pause |
 | <kbd>N</kbd> | new game |
+| <kbd>Esc</kbd> | setup — block set, pit size, starting level |
 | <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | Flat Fun / 3D Mania / Out of Control |
+
+On a touch device an on-screen pad replaces the keyboard: a d-pad, the six
+rotations, drop and pause. Add `?touch=1` to force it on anywhere, which is the
+only way to check it outside a real phone.
+
+The pit is configurable through the setup screen across the original's full
+range — 3–7 wide and long, 6–18 deep, any block set, starting level 0–10.
 
 ## How faithful is it?
 

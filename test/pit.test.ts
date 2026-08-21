@@ -69,6 +69,34 @@ describe('Pit layers', () => {
   })
 })
 
+describe('Pit.outOfBoundsShift', () => {
+  it('is zero when the piece is entirely inside', () => {
+    const pit = new Pit(5, 5, 10)
+    expect(pit.outOfBoundsShift({ cubes: single, x: 2, y: 2, z: 2 })).toEqual([0, 0, 0])
+  })
+
+  it('pushes back in from each wall', () => {
+    const pit = new Pit(5, 5, 10)
+    expect(pit.outOfBoundsShift({ cubes: single, x: -2, y: 0, z: 0 })).toEqual([2, 0, 0])
+    expect(pit.outOfBoundsShift({ cubes: single, x: 6, y: 0, z: 0 })).toEqual([-2, 0, 0])
+    expect(pit.outOfBoundsShift({ cubes: single, x: 0, y: -1, z: 0 })).toEqual([0, 1, 0])
+  })
+
+  // z matters as much as x and y: a piece rotated into the floor is lifted
+  // back out rather than having the rotation refused.
+  it('lifts a piece back out of the floor', () => {
+    const pit = new Pit(5, 5, 10)
+    expect(pit.outOfBoundsShift({ cubes: single, x: 0, y: 0, z: 11 })).toEqual([0, 0, -2])
+  })
+
+  it('takes the largest push any one cube needs, per axis', () => {
+    const pit = new Pit(5, 5, 10)
+    const bar: Cube[] = [[0, 0, 0], [1, 0, 0], [2, 0, 0]]
+    // Cubes land at x = -2, -1, 0; the worst is -2, so the whole piece moves 2.
+    expect(pit.outOfBoundsShift({ cubes: bar, x: -2, y: 0, z: 0 })).toEqual([2, 0, 0])
+  })
+})
+
 describe('Pit.dropDistance', () => {
   it('drops to the floor in an empty pit', () => {
     const pit = new Pit(3, 3, 6)
@@ -84,9 +112,14 @@ describe('Pit.dropDistance', () => {
 })
 
 describe('Game', () => {
-  // Pins piece selection: returns a value that always lands on bag index `i`,
-  // whatever the size of the block set's bag.
-  const always = (i: number) => () => (i + 0.5) / 100
+  // Pins piece selection to a known bag index. The size has to be passed in:
+  // Game picks with floor(random() * bag.length), so a fraction that lands on
+  // index 2 in an 8-piece bag lands somewhere else entirely in a 41-piece one.
+  const FLAT_BAG = 8
+  const always = (index: number, bagSize = FLAT_BAG) => () => (index + 0.5) / bagSize
+  // Bag index 2 of the FLAT set is the three-cube bar - long enough that
+  // rotating it near a wall actually needs a kick.
+  const BAR = 2
 
   it('starts playable with a piece in the top layer of the pit', () => {
     const game = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12 })
@@ -141,6 +174,30 @@ describe('Game', () => {
     for (let i = 0; i < 10; i += 1) game.move(-1, 0)
     expect(game.piece.x).toBe(0)
     expect(game.move(-1, 0)).toBe(false)
+  })
+
+  it('kicks a rotation back off the wall rather than refusing it', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 10, random: always(BAR) })
+    // Shove the piece hard against the left wall, then turn it so it would
+    // stick out. The original shifts it back in instead of rejecting.
+    for (let i = 0; i < 5; i += 1) game.move(-1, 0)
+    expect(game.piece.x).toBe(0)
+    expect(game.rotate('z', 1)).toBe(true)
+    for (const [cx] of game.piece.cubes) expect(game.piece.x + cx).toBeGreaterThanOrEqual(0)
+  })
+
+  it('refuses a rotation that still does not fit after the kick', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 10, random: always(BAR) })
+    // Wall the piece in on both sides: there is nowhere for a kick to go.
+    for (let z = 0; z < game.pit.depth; z += 1) {
+      for (let y = 0; y < game.pit.height; y += 1) {
+        game.pit.set(0, y, z, 1)
+        game.pit.set(2, y, z, 1)
+      }
+    }
+    const before = game.piece.cubes.map((c) => c.join(','))
+    expect(game.rotate('z', 1)).toBe(false)
+    expect(game.piece.cubes.map((c) => c.join(','))).toEqual(before)
   })
 
   // The guard is on the game rather than on whatever has a key bound to it,

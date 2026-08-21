@@ -1,7 +1,9 @@
 import { Game } from './game/game'
 import { Renderer } from './render/renderer'
 import { PiecePreview } from './render/preview'
-import { SETUPS, type Setup } from './game/sets'
+import { SETUPS } from './game/sets'
+import { loadConfig, openSetup, type GameConfig } from './ui/setup'
+import { setupTouchControls, supportsTouch } from './ui/touch'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
 import { setupInstall } from './install'
 
@@ -26,20 +28,25 @@ hud.innerHTML = `
   <div class="panel panel--keys">
     <div><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> move &middot;
       <kbd>Q</kbd><kbd>W</kbd> rotate X &middot; <kbd>A</kbd><kbd>S</kbd> rotate Y &middot; <kbd>Z</kbd><kbd>X</kbd> rotate Z</div>
-    <div><kbd>Space</kbd> drop &middot; <kbd>P</kbd> pause &middot; <kbd>N</kbd> new game &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> setup</div>
+    <div><kbd>Space</kbd> drop &middot; <kbd>P</kbd> pause &middot; <kbd>N</kbd> new game &middot; <kbd>Esc</kbd> setup &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> presets</div>
   </div>
   <div class="overlay" id="overlay" hidden>
     <h1 id="overlay-title">Pit full</h1>
     <p id="final"></p>
     <table class="scores" id="scores"></table>
-    <p class="muted">Press <kbd>N</kbd> to play again</p>
+    <!-- Buttons, not just key hints. On a phone the overlay covers the touch
+         pad, so a keyboard-only "press N" is a dead end with no way out. -->
+    <div class="overlay__actions">
+      <button type="button" id="overlay-primary">Play again</button>
+      <button type="button" id="overlay-setup">Change setup</button>
+    </div>
   </div>
 `
 app.appendChild(hud)
 
 const el = (id: string) => document.getElementById(id)!
 
-let setup: Setup = SETUPS[0]!
+let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0 }
 let game: Game
 let renderer: Renderer
 let preview: PiecePreview
@@ -61,22 +68,36 @@ const renderScoreTable = (highlight?: ScoreEntry): void => {
     .join('')
 }
 
-const start = (chosen: Setup): void => {
-  setup = chosen
+const togglePause = (): void => {
+  if (game.phase !== 'playing') return
+  const paused = game.togglePause()
+  el('overlay').hidden = !paused
+  if (paused) {
+    el('overlay-title').textContent = 'Paused'
+    el('final').textContent = ''
+    el('overlay-primary').textContent = 'Resume'
+    renderScoreTable()
+  }
+}
+
+const start = (chosen: GameConfig): void => {
+  config = chosen
   preview?.dispose()
   stage?.remove()
   stage = document.createElement('div')
   stage.className = 'stage'
   app.insertBefore(stage, hud)
 
-  game = new Game(setup)
+  game = new Game({ ...config, startLevel: config.startLevel })
   renderer = new Renderer(stage, game)
   preview = new PiecePreview(el('preview'))
-  scores = loadScores(setup)
+  scores = loadScores(config)
   recorded = false
 
-  el('setup-name').textContent = setup.name
-  el('setup-detail').textContent = `${setup.set} · ${setup.width}×${setup.height}×${setup.depth}`
+  el('setup-name').textContent = config.name
+  el('setup-detail').textContent =
+    `${config.set} · ${config.width}×${config.height}×${config.depth}`
+    + (config.startLevel ? ` · from level ${config.startLevel}` : '')
   el('best').textContent = String(bestOf(scores))
   el('overlay').hidden = true
 
@@ -92,19 +113,12 @@ const rotations: Record<string, [Parameters<Game['rotate']>[0], Parameters<Game[
 window.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase()
 
-  if (key === 'n') { start(setup); return }
-  if (key === '1' || key === '2' || key === '3') { start(SETUPS[Number(key) - 1]!); return }
+  if (key === 'n') { start(config); return }
+  // Not 'S' - that is already rotate-Y.
+  if (key === 'escape') { openSetup(config, start); return }
+  if (key === '1' || key === '2' || key === '3') { start({ ...SETUPS[Number(key) - 1]!, startLevel: 0 }); return }
 
-  if (key === 'p' && game.phase === 'playing') {
-    const paused = game.togglePause()
-    el('overlay').hidden = !paused
-    if (paused) {
-      el('overlay-title').textContent = 'Paused'
-      el('final').textContent = ''
-      renderScoreTable()
-    }
-    return
-  }
+  if (key === 'p' && game.phase === 'playing') { togglePause(); return }
 
   if (game.phase !== 'playing' || game.paused) return
 
@@ -124,8 +138,24 @@ window.addEventListener('keydown', (event) => {
   event.preventDefault()
 })
 
-start(setup)
+// First visit gets the setup screen; after that it starts straight into
+// whatever you last played, since that's what you almost always want.
+const stored = loadConfig()
+el('overlay-primary').addEventListener('click', () => {
+  // One button, two jobs: resume a paused game, restart a finished one.
+  if (game.phase === 'playing' && game.paused) togglePause()
+  else start(config)
+})
+el('overlay-setup').addEventListener('click', () => {
+  if (game.paused) game.togglePause()
+  el('overlay').hidden = true
+  openSetup(config, start)
+})
+
+start(config)
 setupInstall()
+if (supportsTouch()) setupTouchControls(() => game, togglePause)
+if (!stored) openSetup(config, start)
 
 /**
  * One frame's worth of work, separated from the requestAnimationFrame driver
@@ -152,9 +182,10 @@ const frame = (dt: number): void => {
       cubes: game.cubesPlayed,
       at: new Date().toISOString(),
     }
-    scores = recordScore(setup, entry)
+    scores = recordScore(config, entry)
     el('best').textContent = String(bestOf(scores))
     el('overlay-title').textContent = 'Pit full'
+    el('overlay-primary').textContent = 'Play again'
     el('final').textContent =
       `${game.score} points · level ${game.level} · ${game.layersCleared} layers`
     renderScoreTable(entry)

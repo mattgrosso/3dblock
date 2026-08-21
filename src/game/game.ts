@@ -131,18 +131,26 @@ export class Game {
     const rotated = rotate(this.piece.cubes, axis, dir)
     const candidate = { ...this.placement(), cubes: rotated }
 
-    // Rotating near a wall would otherwise just fail; nudge the piece back
-    // inside first, which is what makes rotation feel usable in a tight pit.
-    for (const [dx, dy] of NUDGES) {
-      const nudged = { ...candidate, x: candidate.x + dx, y: candidate.y + dy }
-      if (!this.pit.collides(nudged)) {
-        this.piece.cubes = rotated
-        this.piece.x = nudged.x
-        this.piece.y = nudged.y
-        return true
-      }
+    if (!this.pit.collides(candidate)) {
+      this.piece.cubes = rotated
+      return true
     }
-    return false
+
+    // The original's kick, and its only one: push back by exactly the amount
+    // the piece is sticking out, try that once, and refuse the rotation if it
+    // still doesn't fit. Searching a spread of nearby offsets instead would
+    // let rotations succeed that the real game rejects.
+    const [sx, sy, sz] = this.pit.outOfBoundsShift(candidate)
+    if (sx === 0 && sy === 0 && sz === 0) return false
+
+    const shifted = { ...candidate, x: candidate.x + sx, y: candidate.y + sy, z: candidate.z + sz }
+    if (this.pit.collides(shifted)) return false
+
+    this.piece.cubes = rotated
+    this.piece.x = shifted.x
+    this.piece.y = shifted.y
+    this.piece.z = shifted.z
+    return true
   }
 
   /** One step down. Returns false if the piece locked instead of moving. */
@@ -212,16 +220,3 @@ export class Game {
     }
   }
 }
-
-// Tried in order: no nudge first, so a rotation that already fits never moves.
-const NUDGES: ReadonlyArray<readonly [number, number]> = [
-  [0, 0],
-  [-1, 0],
-  [1, 0],
-  [0, -1],
-  [0, 1],
-  [-2, 0],
-  [2, 0],
-  [0, -2],
-  [0, 2],
-]

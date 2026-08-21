@@ -55,6 +55,39 @@ export class Pit {
     })
   }
 
+  /**
+   * How far this placement would have to shift, per axis, to bring every cube
+   * back inside the walls. Each axis takes the largest push any single cube
+   * needs; axes that are already fine stay zero.
+   *
+   * This is the original's rotation kick. When a rotation puts a piece through
+   * a wall or the floor, BlockOut doesn't search for somewhere that fits - it
+   * computes exactly this displacement, tries it once, and gives up if that
+   * still doesn't work. Note it includes z, so a piece rotating into the floor
+   * gets lifted rather than refused.
+   */
+  outOfBoundsShift(p: Placement): [number, number, number] {
+    let sx = 0
+    let sy = 0
+    let sz = 0
+
+    const widen = (value: number, current: number): number =>
+      Math.abs(value) > Math.abs(current) ? value : current
+
+    for (const [cx, cy, cz] of p.cubes) {
+      const x = p.x + cx
+      const y = p.y + cy
+      const z = p.z + cz
+      if (x < 0) sx = widen(-x, sx)
+      else if (x >= this.width) sx = widen(this.width - x - 1, sx)
+      if (y < 0) sy = widen(-y, sy)
+      else if (y >= this.height) sy = widen(this.height - y - 1, sy)
+      if (z < 0) sz = widen(-z, sz)
+      else if (z >= this.depth) sz = widen(this.depth - z - 1, sz)
+    }
+    return [sx, sy, sz]
+  }
+
   lock(p: Placement, value: number): void {
     for (const [cx, cy, cz] of p.cubes) {
       const x = p.x + cx
