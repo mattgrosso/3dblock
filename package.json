@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "yarn build && aws s3 sync dist/ s3://aroundtableround-3dblock --delete --profile personal-deploy && aws cloudfront create-invalidation --distribution-id E26TGWNT5TCXV1 --paths '/*' --profile personal-deploy > invalidation_output.txt"
   },
   "dependencies": {
     "three": "^0.169.0"
