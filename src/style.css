@@ -113,3 +113,59 @@ kbd {
   .panel--keys { font-size: 11px; }
   .panel--next canvas { width: 84px !important; height: 84px !important; }
 }
+
+/* Add-to-home-screen. Sits out of the way bottom-right; hidden entirely when
+   the game is already running from a home-screen icon. */
+.install-button {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 900;
+  padding: 8px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 2rem;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.install-button:hover { border-color: #6ea8ff; }
+.install-button[hidden] { display: none; }
+
+.install-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-content: center;
+  padding: 20px;
+  background: rgba(11, 14, 20, 0.85);
+  backdrop-filter: blur(3px);
+}
+
+.install-panel {
+  max-width: 340px;
+  padding: 20px 22px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #121826;
+}
+.install-panel h2 { margin: 0 0 10px; font-size: 19px; }
+.install-panel ol { margin: 0 0 12px; padding-left: 20px; }
+.install-panel li { margin-bottom: 6px; }
+.install-panel .muted { margin: 0 0 16px; }
+.install-panel__close {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.14);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

@@ -3,7 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>3D Block</title>
+    <title>Blockout</title>
+    <meta name="description" content="3D Tetris - polycubes fall into a well, fill a layer to clear it." />
+    <meta name="theme-color" content="#0b0e14" />
+    <!-- vite-plugin-pwa injects the manifest link and the service-worker
+         registration. These are the bits it doesn't: iOS ignores the manifest
+         for home-screen launches and reads its own meta tags instead. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Blockout" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>

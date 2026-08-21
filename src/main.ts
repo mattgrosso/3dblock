@@ -3,6 +3,7 @@ import { Renderer } from './render/renderer'
 import { PiecePreview } from './render/preview'
 import { SETUPS, type Setup } from './game/sets'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
+import { setupInstall } from './install'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -124,6 +125,7 @@ window.addEventListener('keydown', (event) => {
 })
 
 start(setup)
+setupInstall()
 
 /**
  * One frame's worth of work, separated from the requestAnimationFrame driver
