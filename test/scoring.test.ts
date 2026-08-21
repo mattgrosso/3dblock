@@ -7,11 +7,20 @@ import type { BlockSet } from '../src/game/sets'
 // component dominates - that is what the published tables report.
 const singleCube = PIECES[0]!
 
-const lineScore = (set: BlockSet, level: number, depth: number, layersCleared: number): number =>
+const lineScore = (
+  set: BlockSet,
+  level: number,
+  depth: number,
+  layersCleared: number,
+  width = 5,
+  height = 5,
+): number =>
   scoreFor({
     piece: singleCube,
     set,
     level,
+    width,
+    height,
     depth,
     layersCleared,
     dropped: false,
@@ -40,11 +49,26 @@ describe('lineComponent, against the published BlockOut II score tables', () => 
     expect(lineComponent('EXTENDED', 0, 12, 1)).toBe(237)
   })
 
-  // Confirmed against the calculator: 3x3x12 and 5x5x12 pay identically, so
-  // only depth is in the formula.
   it('pays more in a shallow pit and less in a deep one', () => {
     expect(lineComponent('FLAT', 0, 6, 1)).toBe(115)
     expect(lineComponent('FLAT', 0, 18, 1)).toBe(43)
+  })
+
+  // Our deliberate departure (2026-08-21): the original pays 3x3x12 and
+  // 5x5x12 identically; here cross-section scales the score linearly, with
+  // 5x5 as the reference so every published-table check above still holds.
+  describe('area scoring', () => {
+    it('pays proportionally to the cross-section, 5x5 unchanged', () => {
+      expect(lineComponent('FLAT', 0, 12, 1, 5, 5)).toBe(63)
+      expect(lineComponent('FLAT', 0, 12, 1, 3, 3)).toBe(Math.round(62.7 * (9 / 25)))
+      expect(lineComponent('FLAT', 0, 12, 1, 7, 7)).toBe(Math.round(62.7 * (49 / 25)))
+    })
+
+    it('applies to the whole scoreFor total the same way', () => {
+      const five = lineScore('FLAT', 0, 12, 1, 5, 5)
+      const three = lineScore('FLAT', 0, 12, 1, 3, 3)
+      expect(three / five).toBeCloseTo(9 / 25, 1)
+    })
   })
 
   it('scores nothing for clearing no layers', () => {
@@ -68,6 +92,8 @@ describe('scoreFor, drop bonus', () => {
       piece: PIECES[4]!,
       set: 'FLAT',
       level: 0,
+      width: 5,
+      height: 5,
       depth: 12,
       layersCleared: 0,
       dropped,
@@ -90,7 +116,7 @@ describe('scoreFor, drop bonus', () => {
 
 describe('scoreFor, emptying the pit', () => {
   it('adds a two-layer bonus on top of the layers actually cleared', () => {
-    const base = { piece: singleCube, set: 'FLAT' as const, level: 0, depth: 12, layersCleared: 1, dropped: false, dropPosition: 0 }
+    const base = { piece: singleCube, set: 'FLAT' as const, level: 0, width: 5, height: 5, depth: 12, layersCleared: 1, dropped: false, dropPosition: 0 }
     const plain = scoreFor({ ...base, pitEmptied: false })
     const flushed = scoreFor({ ...base, pitEmptied: true })
     expect(flushed - plain).toBe(lineComponent('FLAT', 0, 12, 2))

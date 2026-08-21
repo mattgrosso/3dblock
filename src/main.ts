@@ -184,8 +184,11 @@ const start = (chosen: GameConfig): void => {
 // A/S/D turn each axis one way; the key above each turns it back. Keeping the
 // pairs in columns rather than in a row means the reverse of any rotation is
 // always the key directly above it.
+// One glyph, two unmistakable states. The old muted glyph was ♪ plus a
+// combining slash, which some systems render identically to plain ♪ - the
+// strikethrough now comes from CSS (.mute--off), which always draws.
 const renderMute = (muted: boolean): void => {
-  el('mute').textContent = muted ? '♪̸' : '♪'
+  el('mute').textContent = '♪'
   el('mute').classList.toggle('mute--off', muted)
   el('mute').title = muted ? 'Unmute (M)' : 'Mute (M)'
 }
@@ -210,7 +213,7 @@ window.addEventListener('keydown', (event) => {
   // Any key is a user gesture, which is the only thing that can start audio.
   void sound.unlock()
 
-  if (key === 'm') { renderMute(sound.toggleMute()); return }
+  if (key === 'm') { renderMute(sound.toggleMute()); void sound.confirm(); return }
   if (key === 'n') { start(config); return }
   // Not 'S' - that is already rotate-Y.
   if (key === 'escape') { openSetup(config, start); return }
@@ -286,8 +289,9 @@ el('post-score').addEventListener('submit', (event) => {
 })
 
 el('mute').addEventListener('click', () => {
-  void sound.unlock()
   renderMute(sound.toggleMute())
+  // Unmuting answers with a blip - the toggle proves itself audibly.
+  void sound.confirm()
 })
 renderMute(sound.isMuted)
 // A pointer press is a gesture too - on a phone it's the only one there is.
@@ -311,6 +315,21 @@ setupBugReport(
 )
 if (supportsTouch()) setupTouchControls(() => game, togglePause)
 if (!stored) openSetup(config, start)
+
+// The service worker autoUpdates, but the PAGE keeps running whatever build
+// it booted with until a reload - which is how "I don't hear sounds" happened
+// on a build that shipped sound: the tab was one deploy behind (2026-08-21).
+// When a new worker takes over and the session hasn't really begun, take the
+// update now. Mid-game, leave it be - it lands on the next launch.
+if ('serviceWorker' in navigator) {
+  // On the very first visit the initial worker also fires controllerchange
+  // as it claims the page; that one is not an update.
+  let hadController = Boolean(navigator.serviceWorker.controller)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) { hadController = true; return }
+    if (game.cubesPlayed === 0) location.reload()
+  })
+}
 
 /**
  * One frame's worth of work, separated from the requestAnimationFrame driver

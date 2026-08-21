@@ -228,6 +228,10 @@ kbd {
 
 .setup__note { min-height: 2.6em; margin: 4px 0 16px; line-height: 1.4; }
 
+/* The chosen theme's first six layer colours, under the Colors select. */
+.setup__swatches { display: flex; gap: 5px; margin: -8px 0 14px; min-height: 16px; }
+.setup__swatch { border-radius: 4px; height: 16px; width: 16px; }
+
 .setup__start {
   width: 100%;
   padding: 12px;
@@ -485,4 +489,8 @@ kbd {
   touch-action: manipulation;
 }
 .mute:hover { border-color: #6ea8ff; }
-.mute--off { color: var(--muted); }
+/* Muted has to be unmistakable: the old ♪̸ glyph (♪ + a combining slash)
+   renders identically to ♪ on some systems, which made the toggle unreadable
+   — the likely story behind "I've tried toggling the button but nothing is
+   coming out" (bug report 2026-08-21). CSS strikethrough always renders. */
+.mute--off { color: var(--muted); opacity: 0.55; text-decoration: line-through; }

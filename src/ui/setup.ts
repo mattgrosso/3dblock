@@ -1,6 +1,6 @@
 import { BLOCK_SETS, PIT_LIMITS, SETUPS, type BlockSet, type Setup } from '../game/sets'
 import { MAX_LEVEL } from '../game/scoring'
-import { DEFAULT_THEME, THEME_CHOICES } from '../render/themes'
+import { DEFAULT_THEME, THEME_CHOICES, THEMES } from '../render/themes'
 
 export interface GameConfig extends Setup {
   readonly startLevel: number
@@ -135,6 +135,11 @@ export const openSetup = (
         </select>
       </label>
 
+      <!-- What the chosen theme actually looks like (bug report 2026-08-21:
+           "It would be nice if the color picker gave a preview"). The six
+           chips are the theme's first six layer colours. -->
+      <div class="setup__swatches" id="setup-swatches" aria-hidden="true"></div>
+
       <p class="setup__note muted" id="setup-note"></p>
 
       <button type="button" class="setup__start" id="setup-start">Play</button>
@@ -162,8 +167,8 @@ export const openSetup = (
       guide: guideSel.value === 'on',
     })
 
-  // Both of these surprise people, so say them out loud rather than letting
-  // someone discover them from a scoreboard that doesn't add up.
+  // These surprise people, so say them out loud rather than letting someone
+  // discover them from a scoreboard that doesn't add up.
   const describe = (): void => {
     const c = read()
     const parts = [`${c.name} — scores are kept per set and pit size.`]
@@ -172,11 +177,28 @@ export const openSetup = (
         ? 'A shallow pit scores much more per layer.'
         : c.depth >= 15
           ? 'A deep pit is forgiving, and scores less per layer.'
-          : 'Only depth changes the score — width and height do not.',
+          : '',
     )
+    // Area scoring (2026-08-21): a bigger cross-section takes more cubes per
+    // layer and pays proportionally more; 5x5 is the reference.
+    const area = c.width * c.height
+    if (area > 25) parts.push('A wide pit takes more cubes per layer, and pays more for each.')
+    else if (area < 25) parts.push('A narrow pit fills fast, and pays less per layer.')
     if (c.startLevel > 0) parts.push('Starting high is pure difficulty: it does not shorten the climb.')
-    sel<HTMLElement>('setup-note').textContent = parts.join(' ')
+    sel<HTMLElement>('setup-note').textContent = parts.filter(Boolean).join(' ')
   }
+
+  // Six chips of the selected theme's layer palette; Random keeps its secret.
+  const renderSwatches = (): void => {
+    const theme = THEMES.find((t) => t.name === themeSel.value)
+    sel<HTMLElement>('setup-swatches').innerHTML = theme
+      ? [0, 1, 2, 3, 4, 5]
+          .map((z) => `<span class="setup__swatch" style="background:#${theme.layerColor(z).getHexString()}"></span>`)
+          .join('')
+      : '<span class="muted">a new palette every game</span>'
+  }
+  themeSel.addEventListener('change', renderSwatches)
+  renderSwatches()
 
   for (const el of [setSel, widthSel, heightSel, depthSel, levelSel, themeSel]) {
     el.addEventListener('change', describe)

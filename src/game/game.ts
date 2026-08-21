@@ -246,6 +246,8 @@ export class Game {
       piece: this.piece.def,
       set: this.set,
       level: this.level,
+      width: this.pit.width,
+      height: this.pit.height,
       depth: this.pit.depth,
       layersCleared: layers.length,
       dropped: this.piece.dropFrom !== null,

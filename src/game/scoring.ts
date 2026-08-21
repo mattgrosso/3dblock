@@ -44,10 +44,25 @@ export const MAX_LEVEL = 10
 /** Emptying the pit completely pays the same as clearing two layers at once. */
 export const FLUSH_BONUS_LAYERS = 2
 
+/**
+ * OUR ONE DELIBERATE DEPARTURE from the measured 1989 scoring (besides the
+ * TETRIS set): the original pays the same for a 3x3x12 layer as a 5x5x12
+ * layer, even though the second takes nearly three times the cubes to fill.
+ * Matt's call (bug report, 2026-08-21): cross-section should matter. Linear
+ * in area, normalised to the classic 5x5 - so every 5x5 score, including all
+ * the published-table checks below, is bit-identical to the original.
+ */
+export const AREA_REFERENCE = 25
+
+export const areaFactor = (width: number, height: number): number =>
+  (width * height) / AREA_REFERENCE
+
 export interface ScoreInput {
   readonly piece: PieceDef
   readonly set: BlockSet
   readonly level: number
+  readonly width: number
+  readonly height: number
   readonly depth: number
   /** Layers cleared by this piece. */
   readonly layersCleared: number
@@ -75,6 +90,8 @@ export const lineComponent = (
   level: number,
   depth: number,
   layersCleared: number,
+  width = 5,
+  height = 5,
 ): number => {
   const lineBase = LINE_BASE[blockSetIndex(set)] ?? LINE_BASE[0]
   const layers = Math.min(layersCleared, LINE_COUNT_FACTOR.length - 1)
@@ -82,7 +99,8 @@ export const lineComponent = (
     lineBase *
     (LINE_LEVEL_FACTOR[clampLevel(level)] ?? 0) *
     (LINE_COUNT_FACTOR[layers] ?? 0) *
-    (DEPTH_FACTOR[depth] ?? 0)
+    (DEPTH_FACTOR[depth] ?? 0) *
+    areaFactor(width, height)
   return Math.round(raw)
 }
 
@@ -108,7 +126,8 @@ export const scoreFor = (input: ScoreInput): number => {
     ? lineBase * (LINE_LEVEL_FACTOR[level] ?? 0) * (LINE_COUNT_FACTOR[FLUSH_BONUS_LAYERS] ?? 0)
     : 0
 
-  const total = (lineScore + pieceScore + flushScore) * depthFactor
+  const total =
+    (lineScore + pieceScore + flushScore) * depthFactor * areaFactor(input.width, input.height)
   // Every locked piece is worth at least a point, however deep the pit.
   return Math.max(1, Math.round(total))
 }

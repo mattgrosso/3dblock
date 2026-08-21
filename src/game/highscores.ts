@@ -15,8 +15,13 @@ export interface ScoreEntry {
 
 export const MAX_ENTRIES = 10
 
+// The `-a2` suffix marks the area-scored era (2026-08-21): non-5x5 pits now
+// pay proportionally to their cross-section, so their old boards are in a
+// different currency and stay frozen under the unsuffixed key. 5x5 scores
+// are bit-identical before and after, so those boards keep their history.
 export const setupKey = (setup: Setup): string =>
-  `${setup.set}-${setup.width}x${setup.height}x${setup.depth}`
+  `${setup.set}-${setup.width}x${setup.height}x${setup.depth}` +
+  (setup.width * setup.height === 25 ? '' : '-a2')
 
 /** Highest first; ties broken by the older run, which got there first. */
 export const addEntry = (

@@ -91,4 +91,15 @@ export class Sound {
   handle(event: GameEvent): void {
     if (event in CLIPS) this.play(event as ClipName)
   }
+
+  /**
+   * Audible proof-of-life for the mute toggle (bug report 2026-08-21: silence
+   * plus an ambiguous icon left no way to tell whether sound worked at all).
+   * Call after toggling, from inside the same gesture: unmuting plays a blip
+   * immediately; muting stays silent because play() checks the flag.
+   */
+  async confirm(): Promise<void> {
+    await this.unlock()
+    this.play('rotateBlocked')
+  }
 }

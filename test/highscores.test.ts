@@ -20,6 +20,16 @@ describe('setupKey', () => {
     expect(setupKey(base)).not.toBe(setupKey({ ...base, depth: 18 }))
     expect(setupKey(base)).not.toBe(setupKey({ ...base, width: 3 }))
   })
+
+  // Area scoring (2026-08-21) changed what a non-5x5 score is worth, so those
+  // boards start over under a suffixed key; 5x5 scores are unchanged and keep
+  // their history under the unsuffixed one.
+  it('marks non-5x5 boards with the area-scoring era, and leaves 5x5 alone', () => {
+    const base = SETUPS[0]!
+    expect(setupKey({ ...base, width: 5, height: 5 })).toBe('TETRIS-5x5x12')
+    expect(setupKey({ ...base, width: 3, height: 3 })).toBe('TETRIS-3x3x12-a2')
+    expect(setupKey({ ...base, width: 7, height: 7 })).toBe('TETRIS-7x7x12-a2')
+  })
 })
 
 describe('addEntry', () => {
