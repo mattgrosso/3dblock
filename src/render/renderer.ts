@@ -172,6 +172,38 @@ export class Renderer {
     }
   }
 
+  /**
+   * The glass look, second half (bug report follow-up: "I want the far
+   * edges of the active block to be a bit faded when I see them through the
+   * glass"): the outline gets per-vertex colour that fades toward the
+   * background the deeper into the piece a vertex sits. Near edges stay
+   * bright, the far side reads as seen THROUGH the body — and an edge that
+   * runs front-to-back gets the gradient along its length for free, because
+   * line vertices interpolate. A flat piece has no depth to fade across and
+   * comes out uniformly bright.
+   */
+  private fadeFarEdges(outline: THREE.BufferGeometry, color: THREE.Color): void {
+    const positions = outline.getAttribute('position')
+    let near = -Infinity
+    for (let i = 0; i < positions.count; i += 1) {
+      // Camera looks down -z: the biggest z is the piece's nearest face.
+      if (positions.getZ(i) > near) near = positions.getZ(i)
+    }
+
+    // Attenuate per CELL of glass in front of the vertex, like real
+    // material thickness, rather than normalising to the piece's own depth
+    // - a one-cell-thick piece should fade "a bit", not as hard as the far
+    // tip of a five-cell bar. Capped so even that tip stays legible.
+    const background = new THREE.Color(this.theme.background)
+    const colors: number[] = []
+    for (let i = 0; i < positions.count; i += 1) {
+      const cellsDeep = near - positions.getZ(i)
+      const faded = color.clone().lerp(background, Math.min(0.75, cellsDeep * 0.35))
+      colors.push(faded.r, faded.g, faded.b)
+    }
+    outline.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  }
+
   private syncFalling(): void {
     this.clearGroup(this.falling)
     this.clearGroup(this.guide)
@@ -207,12 +239,20 @@ export class Renderer {
     faces.position.copy(this.toWorld(piece.x, piece.y, piece.z))
     this.falling.add(faces)
 
-    const edges = new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color }))
+    // The landing marker clones the outline BEFORE the fade paints it: the
+    // marker is flat information, not a body, so it stays uniform.
+    const landingOutline = outline.clone()
+
+    this.fadeFarEdges(outline, color)
+    const edges = new THREE.LineSegments(
+      outline,
+      new THREE.LineBasicMaterial({ vertexColors: true }),
+    )
     edges.position.copy(faces.position)
     this.falling.add(edges)
 
     const landing = new THREE.LineSegments(
-      outline.clone(),
+      landingOutline,
       new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 }),
     )
     landing.position.copy(this.toWorld(piece.x, piece.y, this.game.landingZ()))
