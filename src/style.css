@@ -285,21 +285,26 @@ kbd {
   grid-template-areas: ". up ." "left . right" ". down .";
   gap: 5px;
 }
-.touchpad__dpad .touchpad__btn { width: 46px; height: 46px; font-size: 17px; }
+/* Every size is min(fixed, vw): normal phones keep the designed sizes, and a
+   narrow viewport (bug report 2026-08-21, 352px: "I can't see the buttons on
+   the right edge") scales the whole pad down instead of clipping it. Budget
+   at 352px: dpad 3x38+10=124 + drop 84 + rotations 2x42+5=89 + gaps 20 +
+   padding 24 = 341 < 352. */
+.touchpad__dpad .touchpad__btn { width: min(46px, 10.8vw); height: min(46px, 10.8vw); font-size: min(17px, 4.4vw); }
 
 .touchpad__rotations {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 5px;
 }
-.touchpad__rotations .touchpad__btn { width: 52px; height: 40px; font-size: 13px; }
+.touchpad__rotations .touchpad__btn { width: min(52px, 12vw); height: min(40px, 10vw); font-size: min(13px, 3.4vw); }
 
 .touchpad__centre { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.touchpad__btn--pause { width: 100%; height: 30px; font-size: 11px; }
+.touchpad__btn--pause { width: 100%; height: min(30px, 8vw); font-size: min(11px, 3vw); }
 
 .touchpad__btn--drop {
-  width: 120px;
-  height: 56px;
+  width: min(120px, 24vw);
+  height: min(56px, 13vw);
   font-size: 14px;
   letter-spacing: 0.06em;
   border-color: #6ea8ff;
