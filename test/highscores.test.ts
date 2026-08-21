@@ -12,7 +12,7 @@ describe('setupKey', () => {
   it('gives each setup its own bucket', () => {
     const keys = SETUPS.map(setupKey)
     expect(new Set(keys).size).toBe(SETUPS.length)
-    expect(keys[0]).toBe('FLAT-5x5x12')
+    expect(keys[0]).toBe('TETRIS-5x5x12')
   })
 
   it('separates the same block set in different pits', () => {

@@ -24,8 +24,8 @@ yarn build      # typecheck + production bundle
 | <kbd>P</kbd> | pause |
 | <kbd>M</kbd> | mute |
 | <kbd>N</kbd> | new game |
-| <kbd>Esc</kbd> | setup — block set, pit size, starting level |
-| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | Flat Fun / 3D Mania / Out of Control |
+| <kbd>Esc</kbd> | setup — block set, pit size, starting level, colors |
+| <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> | Tetris / Flat Fun / 3D Mania / Out of Control |
 
 On a touch device an on-screen pad replaces the keyboard: a d-pad, the six
 rotations, drop and pause. Add `?touch=1` to force it on anywhere, which is the
@@ -57,11 +57,30 @@ Things worth knowing, all pinned by tests:
   piece is exactly one cube thick — that's what makes it flat.
 - **Emptying the pit pays a two-layer bonus.**
 
+One deliberate departure: a **TETRIS** set (the default preset) that the
+original doesn't have. It's the five one-thick four-cube tetrominoes — five,
+not seven, because with free 3D rotation S/Z and L/J are the same piece — for
+people who want the familiar game without FLAT's one-, two- and three-cube
+freebies. It scores at the FLAT rate.
+
+The locked stack is coloured **by layer**, the way the original paints it, so
+one piece can end up wearing two colours and the stack reads like contour
+lines. The setup screen offers a few colour themes, or Random for a new one
+each game.
+
 The falling piece renders as a wireframe and only turns solid once it locks.
 That's how the original does it, and it isn't decoration: looking straight down
 the well, a solid piece would sit exactly between the camera and the spot it's
 about to land on. Being able to see through it is what makes the head-on view
 playable.
+
+## Bug reports
+
+The 🐛 button (every screen, bottom-left) files a report into the games hub's
+Firebase project — a write-only `blockoutBugReports` node in
+`thunderstoner-876f8`, reached over plain REST so this app stays SDK-free; the
+rule lives in the thunder repo's `database.rules.json`. Reports filed offline
+wait in localStorage. Triage with `yarn fetch-bug-reports`.
 
 ## Sound
 

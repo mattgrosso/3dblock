@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { PieceDef } from '../game/pieces'
 import { normalize, type Cube } from '../game/rotation'
 import { polycubeEdges, polycubeGeometry } from './geometry'
+import type { Theme } from './themes'
 
 /**
  * The next piece, shown from an angle and slowly turning.
@@ -18,8 +19,10 @@ export class PiecePreview {
   private readonly camera: THREE.PerspectiveCamera
   private readonly pivot = new THREE.Group()
   private shown: PieceDef | null = null
+  private readonly theme: Theme
 
-  constructor(parent: HTMLElement, size = 132) {
+  constructor(parent: HTMLElement, theme: Theme, size = 132) {
+    this.theme = theme
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(size, size)
@@ -43,7 +46,8 @@ export class PiecePreview {
     }
 
     const cubes = normalize(def.cubes.map((c) => [...c] as unknown as Cube))
-    const color = new THREE.Color().setHSL(((def.id + 1) * 0.137) % 1, 0.62, 0.55)
+    // The same colour the piece will wear when it arrives in the pit.
+    const color = this.theme.pieceColor(def.id)
 
     // The same welded geometry the pit uses, so the preview and the piece that
     // arrives are recognisably the same object.
@@ -61,7 +65,7 @@ export class PiecePreview {
 
     const edges = new THREE.LineSegments(
       polycubeEdges(solid),
-      new THREE.LineBasicMaterial({ color: 0x0b0e14 }),
+      new THREE.LineBasicMaterial({ color: this.theme.background }),
     )
     this.pivot.add(edges)
 

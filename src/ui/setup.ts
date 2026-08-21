@@ -1,13 +1,16 @@
 import { BLOCK_SETS, PIT_LIMITS, SETUPS, type BlockSet, type Setup } from '../game/sets'
 import { MAX_LEVEL } from '../game/scoring'
+import { DEFAULT_THEME, THEME_CHOICES } from '../render/themes'
 
 export interface GameConfig extends Setup {
   readonly startLevel: number
+  /** A theme name, or 'Random' for a fresh one each game. */
+  readonly theme: string
 }
 
 const STORAGE_KEY = '3dblock.config'
 
-const DEFAULT_CONFIG: GameConfig = { ...SETUPS[0]!, startLevel: 0 }
+const DEFAULT_CONFIG: GameConfig = { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME }
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, Math.round(value)))
@@ -15,12 +18,13 @@ const clamp = (value: number, min: number, max: number): number =>
 /** Anything stored could be from an older build or hand-edited; clamp it all. */
 export const normalizeConfig = (raw: unknown): GameConfig => {
   const c = (raw ?? {}) as Partial<GameConfig>
-  const set: BlockSet = BLOCK_SETS.includes(c.set as BlockSet) ? (c.set as BlockSet) : 'FLAT'
+  const set: BlockSet = BLOCK_SETS.includes(c.set as BlockSet) ? (c.set as BlockSet) : 'TETRIS'
   const width = clamp(Number(c.width) || 5, PIT_LIMITS.minSide, PIT_LIMITS.maxSide)
   const height = clamp(Number(c.height) || 5, PIT_LIMITS.minSide, PIT_LIMITS.maxSide)
   const depth = clamp(Number(c.depth) || 12, PIT_LIMITS.minDepth, PIT_LIMITS.maxDepth)
   const startLevel = clamp(Number(c.startLevel) || 0, 0, MAX_LEVEL)
-  return { name: nameFor({ set, width, height, depth }), set, width, height, depth, startLevel }
+  const theme = THEME_CHOICES.includes(c.theme as string) ? (c.theme as string) : DEFAULT_THEME
+  return { name: nameFor({ set, width, height, depth }), set, width, height, depth, startLevel, theme }
 }
 
 /**
@@ -59,6 +63,7 @@ const options = (values: number[], selected: number): string =>
   values.map((v) => `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`).join('')
 
 const SET_BLURB: Record<BlockSet, string> = {
+  TETRIS: 'the tetrominoes — every piece 4 cubes',
   FLAT: '8 pieces, all one cube thick',
   BASIC: '7 simple solids',
   EXTENDED: 'all 41 pieces',
@@ -109,6 +114,15 @@ export const openSetup = (
         <select id="setup-level">${options(range(0, MAX_LEVEL), config.startLevel)}</select>
       </label>
 
+      <label class="setup__row">
+        <span>Colors</span>
+        <select id="setup-theme">
+          ${THEME_CHOICES.map(
+            (t) => `<option value="${t}"${t === config.theme ? ' selected' : ''}>${t}</option>`,
+          ).join('')}
+        </select>
+      </label>
+
       <p class="setup__note muted" id="setup-note"></p>
 
       <button type="button" class="setup__start" id="setup-start">Play</button>
@@ -122,6 +136,7 @@ export const openSetup = (
   const heightSel = sel<HTMLSelectElement>('setup-height')
   const depthSel = sel<HTMLSelectElement>('setup-depth')
   const levelSel = sel<HTMLSelectElement>('setup-level')
+  const themeSel = sel<HTMLSelectElement>('setup-theme')
 
   const read = (): GameConfig =>
     normalizeConfig({
@@ -130,6 +145,7 @@ export const openSetup = (
       height: Number(heightSel.value),
       depth: Number(depthSel.value),
       startLevel: Number(levelSel.value),
+      theme: themeSel.value,
     })
 
   // Both of these surprise people, so say them out loud rather than letting
@@ -148,7 +164,7 @@ export const openSetup = (
     sel<HTMLElement>('setup-note').textContent = parts.join(' ')
   }
 
-  for (const el of [setSel, widthSel, heightSel, depthSel, levelSel]) {
+  for (const el of [setSel, widthSel, heightSel, depthSel, levelSel, themeSel]) {
     el.addEventListener('change', describe)
   }
 

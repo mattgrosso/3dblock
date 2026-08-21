@@ -34,7 +34,10 @@ const DEPTH_FACTOR = [
   0.651709, 0.61485, 0.583868,
 ] as const
 
-const LINE_BASE = [762.5, 875.5, 2886.25] as const
+// The first three are the original's FLAT / BASIC / EXTENDED bases. TETRIS is
+// ours: it plays like FLAT without the one- to three-cube freebies, so it pays
+// the FLAT rate rather than inventing a new constant.
+const LINE_BASE = [762.5, 875.5, 2886.25, 762.5] as const
 
 export const MAX_LEVEL = 10
 

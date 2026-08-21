@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy": "yarn build && sh scripts/deploy.sh"
+    "deploy": "yarn build && sh scripts/deploy.sh",
+    "fetch-bug-reports": "firebase database:get /blockoutBugReports --project thunderstoner-876f8 --pretty"
   },
   "dependencies": {
     "three": "^0.169.0"

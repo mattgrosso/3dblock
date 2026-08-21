@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { nameFor, normalizeConfig } from '../src/ui/setup'
 import { SETUPS, PIT_LIMITS } from '../src/game/sets'
 import { setupKey } from '../src/game/highscores'
+import { THEME_CHOICES } from '../src/render/themes'
 
 describe('nameFor', () => {
   it('recognises each scored setup', () => {
@@ -16,7 +17,8 @@ describe('nameFor', () => {
   it('names a hand-built configuration after the preset it matches', () => {
     const built = { set: 'FLAT' as const, width: 5, height: 5, depth: 12 }
     expect(nameFor(built)).toBe('Flat Fun')
-    expect(setupKey({ ...built, name: nameFor(built) })).toBe(setupKey(SETUPS[0]!))
+    const flatFun = SETUPS.find((s) => s.name === 'Flat Fun')!
+    expect(setupKey({ ...built, name: nameFor(built) })).toBe(setupKey(flatFun))
   })
 
   it('calls anything else Custom', () => {
@@ -50,11 +52,19 @@ describe('normalizeConfig', () => {
   it('falls back to a playable default for junk', () => {
     for (const junk of [null, undefined, {}, { set: 'NONSENSE' }, 'nope', 42]) {
       const config = normalizeConfig(junk)
-      expect(['FLAT', 'BASIC', 'EXTENDED']).toContain(config.set)
+      expect(['TETRIS', 'FLAT', 'BASIC', 'EXTENDED']).toContain(config.set)
       expect(config.width).toBeGreaterThanOrEqual(PIT_LIMITS.minSide)
       expect(config.depth).toBeGreaterThanOrEqual(PIT_LIMITS.minDepth)
       expect(config.depth).toBeLessThanOrEqual(PIT_LIMITS.maxDepth)
     }
+  })
+
+  // Theme names change; whatever is stored has to resolve to something the
+  // renderer can actually paint with.
+  it('keeps a known theme and replaces an unknown one', () => {
+    expect(normalizeConfig({ theme: 'Random' }).theme).toBe('Random')
+    expect(THEME_CHOICES).toContain(normalizeConfig({ theme: 'Vantablack' }).theme)
+    expect(THEME_CHOICES).toContain(normalizeConfig({}).theme)
   })
 
   it('always produces a depth the scoring table covers', () => {

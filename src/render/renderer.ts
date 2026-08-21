@@ -1,13 +1,10 @@
 import * as THREE from 'three'
 import type { Game } from '../game/game'
 import { extentOf } from '../game/rotation'
-import { polycubeEdges, polycubeGeometry } from './geometry'
+import { pitGeometry, polycubeEdges, polycubeGeometry } from './geometry'
+import type { Theme } from './themes'
 
 const CELL = 1
-
-// One hue per piece id, so a locked cube still tells you what it came from.
-const colorFor = (value: number): THREE.Color =>
-  new THREE.Color().setHSL(((value * 0.137) % 1), 0.62, 0.55)
 
 /**
  * Draws the pit straight down its axis, the way the original does. The
@@ -19,21 +16,24 @@ export class Renderer {
   readonly scene = new THREE.Scene()
   private readonly camera: THREE.PerspectiveCamera
   private readonly renderer: THREE.WebGLRenderer
-  private readonly locked: THREE.InstancedMesh
+  private readonly locked: THREE.Group
   private readonly falling: THREE.Group
   private readonly guide: THREE.Group
   private readonly game: Game
-  private readonly dummy = new THREE.Object3D()
+  private readonly theme: Theme
+  /** cubesPlayed as of the last locked-stack rebuild; -1 forces the first. */
+  private lockedAt = -1
 
-  constructor(canvasParent: HTMLElement, game: Game) {
+  constructor(canvasParent: HTMLElement, game: Game, theme: Theme) {
     this.game = game
+    this.theme = theme
     const { width, height, depth } = game.pit
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     canvasParent.appendChild(this.renderer.domElement)
 
-    this.scene.background = new THREE.Color(0x0b0e14)
+    this.scene.background = new THREE.Color(theme.background)
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500)
     // Backed off far enough that the whole mouth is comfortably in frame.
@@ -45,7 +45,7 @@ export class Renderer {
     // and never fully reaches the floor, which reads as distance without
     // hiding what you've stacked.
     this.scene.fog = new THREE.Fog(
-      0x0b0e14,
+      theme.background,
       cameraDistance + depth * 0.55,
       cameraDistance + depth * 1.7,
     )
@@ -58,24 +58,13 @@ export class Renderer {
 
     this.scene.add(this.buildPitFrame())
 
-    const maxCubes = width * height * depth
-    this.locked = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(CELL * 0.92, CELL * 0.92, CELL * 0.92),
-      // No `vertexColors` here, deliberately. That flag makes the shader read a
-      // per-*vertex* colour attribute, which BoxGeometry doesn't have - so
-      // every cube samples black. Per-*instance* colour comes from the
-      // instanceColor buffer that setColorAt fills, and three.js wires that up
-      // on its own.
-      new THREE.MeshLambertMaterial(),
-      maxCubes,
-    )
-    this.locked.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-    this.locked.count = 0
-    this.scene.add(this.locked)
-
+    this.locked = new THREE.Group()
+    // Cell (0,0,0)'s centre in world space; the pit geometry is built in cell
+    // coordinates, so parking the group here makes them line up with toWorld.
+    this.locked.position.copy(this.toWorld(0, 0, 0))
     this.falling = new THREE.Group()
     this.guide = new THREE.Group()
-    this.scene.add(this.falling, this.guide)
+    this.scene.add(this.locked, this.falling, this.guide)
 
     this.resize()
     window.addEventListener('resize', () => this.resize())
@@ -123,14 +112,14 @@ export class Renderer {
     group.add(
       new THREE.LineSegments(
         new THREE.BufferGeometry().setFromPoints(points),
-        new THREE.LineBasicMaterial({ color: 0x2f3b52 }),
+        new THREE.LineBasicMaterial({ color: this.theme.frame }),
       ),
     )
 
     // The floor, drawn solid so the bottom of the well is unmistakable.
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(width * CELL, height * CELL),
-      new THREE.MeshBasicMaterial({ color: 0x121826, transparent: true, opacity: 0.85 }),
+      new THREE.MeshBasicMaterial({ color: this.theme.floor, transparent: true, opacity: 0.85 }),
     )
     floor.position.z = -depth * CELL + CELL / 2
     group.add(floor)
@@ -142,25 +131,38 @@ export class Renderer {
     group.add(
       new THREE.LineSegments(
         new THREE.BufferGeometry().setFromPoints(mouthPoints),
-        new THREE.LineBasicMaterial({ color: 0x6ea8ff }),
+        new THREE.LineBasicMaterial({ color: this.theme.mouth }),
       ),
     )
 
     return group
   }
 
+  /**
+   * Rebuild the locked stack as one welded, layer-coloured solid. The pit only
+   * changes when a piece locks, and every lock raises cubesPlayed, so that
+   * counter is the cheap change detector - most frames this is a no-op.
+   */
   private syncLocked(): void {
-    let i = 0
-    for (const cell of this.game.pit.filled()) {
-      this.dummy.position.copy(this.toWorld(cell.x, cell.y, cell.z))
-      this.dummy.updateMatrix()
-      this.locked.setMatrixAt(i, this.dummy.matrix)
-      this.locked.setColorAt(i, colorFor(cell.value))
-      i += 1
-    }
-    this.locked.count = i
-    this.locked.instanceMatrix.needsUpdate = true
-    if (this.locked.instanceColor) this.locked.instanceColor.needsUpdate = true
+    if (this.game.cubesPlayed === this.lockedAt) return
+    this.lockedAt = this.game.cubesPlayed
+
+    this.clearGroup(this.locked)
+    const cells = [...this.game.pit.filled()]
+    if (!cells.length) return
+
+    const solid = pitGeometry(cells, (cell) => this.theme.layerColor(cell.z))
+    this.locked.add(
+      new THREE.Mesh(solid, new THREE.MeshLambertMaterial({ vertexColors: true })),
+    )
+    // Creases and silhouette in the background colour, so stacked cubes keep
+    // their outline without reintroducing the per-cube seams.
+    this.locked.add(
+      new THREE.LineSegments(
+        polycubeEdges(solid),
+        new THREE.LineBasicMaterial({ color: this.theme.background }),
+      ),
+    )
   }
 
   private clearGroup(group: THREE.Group): void {
@@ -176,7 +178,7 @@ export class Renderer {
     if (this.game.phase !== 'playing') return
 
     const piece = this.game.piece
-    const color = colorFor(piece.def.id + 1)
+    const color = this.theme.pieceColor(piece.def.id)
 
     // One welded solid for the whole piece, so a bar looks like a bar rather
     // than three cubes with seams. Built once and shared by the piece and its

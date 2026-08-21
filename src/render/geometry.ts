@@ -35,16 +35,22 @@ const FACES: readonly Face[] = [
  * mapping in one place - callers just position the result at the piece's
  * origin.
  */
-export const polycubeGeometry = (cubes: readonly Cube[]): THREE.BufferGeometry => {
+const build = (
+  cubes: readonly Cube[],
+  colorOf?: (cube: Cube) => THREE.Color,
+): THREE.BufferGeometry => {
   const occupied = new Set(cubes.map((c) => c.join(',')))
   const positions: number[] = []
   const normals: number[] = []
+  const colors: number[] = []
   const indices: number[] = []
 
-  for (const [cx, cy, cz] of cubes) {
+  for (const cube of cubes) {
+    const [cx, cy, cz] = cube
     const ox = cx
     const oy = -cy
     const oz = -cz
+    const color = colorOf?.(cube)
 
     for (const face of FACES) {
       // The neighbour in pit coordinates, undoing the two flips above.
@@ -55,6 +61,7 @@ export const polycubeGeometry = (cubes: readonly Cube[]): THREE.BufferGeometry =
       for (const [vx, vy, vz] of face.corners) {
         positions.push(ox + vx, oy + vy, oz + vz)
         normals.push(...face.normal)
+        if (color) colors.push(color.r, color.g, color.b)
       }
       indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
     }
@@ -63,9 +70,28 @@ export const polycubeGeometry = (cubes: readonly Cube[]): THREE.BufferGeometry =
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  if (colorOf) geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geometry.setIndex(indices)
   return geometry
 }
+
+export const polycubeGeometry = (cubes: readonly Cube[]): THREE.BufferGeometry => build(cubes)
+
+/**
+ * The locked stack as one welded surface, like the falling pieces - a face is
+ * emitted only where a cell meets air, whichever piece put its neighbour there.
+ * Colour rides on the vertices (one colour per cell, by layer), so a single
+ * mesh renders the whole pit and a piece straddling two layers shows both
+ * colours.
+ */
+export const pitGeometry = (
+  cells: ReadonlyArray<{ x: number; y: number; z: number }>,
+  colorOf: (cell: { x: number; y: number; z: number }) => THREE.Color,
+): THREE.BufferGeometry =>
+  build(
+    cells.map((c) => [c.x, c.y, c.z] as Cube),
+    ([x, y, z]) => colorOf({ x, y, z }),
+  )
 
 /** Silhouette and creases only - coplanar joins between merged faces vanish. */
 export const polycubeEdges = (geometry: THREE.BufferGeometry): THREE.BufferGeometry =>

@@ -82,11 +82,22 @@ describe('the piece data itself', () => {
     expect(piecesIn('FLAT')).toHaveLength(8)
     expect(piecesIn('BASIC')).toHaveLength(7)
     expect(piecesIn('EXTENDED')).toHaveLength(41)
+    expect(piecesIn('TETRIS')).toHaveLength(5)
   })
 
   // What makes the flat set flat. If this ever fails, a piece was mis-copied.
   it('keeps every FLAT piece one cube thick', () => {
     for (const piece of piecesIn('FLAT')) {
+      expect(extentOf(piece.cubes).depth).toBe(1)
+    }
+  })
+
+  // What makes the Tetris set Tetris: exactly the one-thick four-cube pieces.
+  // Five, not seven - S/Z and L/J are the same piece once you can rotate out
+  // of the plane. No single cube, no bars shorter than four.
+  it('keeps every TETRIS piece a four-cube tetromino', () => {
+    for (const piece of piecesIn('TETRIS')) {
+      expect(piece.cubes).toHaveLength(4)
       expect(extentOf(piece.cubes).depth).toBe(1)
     }
   })

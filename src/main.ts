@@ -4,6 +4,8 @@ import { PiecePreview } from './render/preview'
 import { SETUPS } from './game/sets'
 import { loadConfig, openSetup, type GameConfig } from './ui/setup'
 import { setupTouchControls, supportsTouch } from './ui/touch'
+import { setupBugReport } from './ui/bugreport'
+import { DEFAULT_THEME, resolveTheme } from './render/themes'
 import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
 import { setupInstall } from './install'
@@ -30,7 +32,7 @@ hud.innerHTML = `
   <div class="panel panel--keys">
     <div><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> move &middot;
       <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> rotate X / Y / Z &middot; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd> reverse</div>
-    <div><kbd>Space</kbd> drop &middot; <kbd>P</kbd> pause &middot; <kbd>N</kbd> new game &middot; <kbd>Esc</kbd> setup &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> presets</div>
+    <div><kbd>Space</kbd> drop &middot; <kbd>P</kbd> pause &middot; <kbd>N</kbd> new game &middot; <kbd>Esc</kbd> setup &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> presets</div>
   </div>
   <div class="overlay" id="overlay" hidden>
     <h1 id="overlay-title">Pit full</h1>
@@ -48,7 +50,7 @@ app.appendChild(hud)
 
 const el = (id: string) => document.getElementById(id)!
 
-let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0 }
+let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME }
 let game: Game
 let renderer: Renderer
 let preview: PiecePreview
@@ -93,8 +95,10 @@ const start = (chosen: GameConfig): void => {
 
   game = new Game({ ...config, startLevel: config.startLevel })
   game.onEvent = (event) => sound.handle(event)
-  renderer = new Renderer(stage, game)
-  preview = new PiecePreview(el('preview'))
+  // Resolved per game, which is what makes 'Random' a new look every round.
+  const theme = resolveTheme(config.theme)
+  renderer = new Renderer(stage, game, theme)
+  preview = new PiecePreview(el('preview'), theme)
   scores = loadScores(config)
   recorded = false
 
@@ -124,6 +128,14 @@ const rotations: Record<string, [Parameters<Game['rotate']>[0], Parameters<Game[
 }
 
 window.addEventListener('keydown', (event) => {
+  // Typing in a form control - the bug-report textarea, the setup selects -
+  // must not rotate pieces or restart the game.
+  if (
+    event.target instanceof HTMLTextAreaElement ||
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLSelectElement
+  ) return
+
   const key = event.key.toLowerCase()
 
   // Any key is a user gesture, which is the only thing that can start audio.
@@ -133,7 +145,10 @@ window.addEventListener('keydown', (event) => {
   if (key === 'n') { start(config); return }
   // Not 'S' - that is already rotate-Y.
   if (key === 'escape') { openSetup(config, start); return }
-  if (key === '1' || key === '2' || key === '3') { start({ ...SETUPS[Number(key) - 1]!, startLevel: 0 }); return }
+  if (key >= '1' && key <= String(SETUPS.length)) {
+    start({ ...SETUPS[Number(key) - 1]!, startLevel: 0, theme: config.theme })
+    return
+  }
 
   if (key === 'p' && game.phase === 'playing') { togglePause(); return }
 
@@ -179,6 +194,20 @@ window.addEventListener('pointerdown', () => void sound.unlock(), { once: true }
 
 start(config)
 setupInstall()
+setupBugReport(
+  () => ({
+    config,
+    score: game.score,
+    level: game.level,
+    layers: game.layersCleared,
+    cubes: game.cubesPlayed,
+    phase: game.phase,
+    paused: game.paused,
+    touch: document.body.classList.contains('has-touchpad'),
+  }),
+  // Pause before the panel opens, or the piece keeps falling while they type.
+  () => { if (game.phase === 'playing' && !game.paused) togglePause() },
+)
 if (supportsTouch()) setupTouchControls(() => game, togglePause)
 if (!stored) openSetup(config, start)
 

@@ -319,6 +319,84 @@ kbd {
 /* The overlay must sit above the touch pad, or its buttons can't be reached. */
 .overlay { z-index: 1000; }
 
+/* ---- Bug reports ---- */
+/* Bottom-left, same corner as the other apps (the install button owns
+   bottom-right). Above every overlay so it's reachable from the pause screen,
+   the game-over screen, and setup alike. */
+.bug-trigger {
+  position: fixed;
+  left: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 1250;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: var(--panel);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  touch-action: manipulation;
+}
+.bug-trigger:hover { border-color: #6ea8ff; }
+
+/* The touch pad owns the bottom edge on phones; sit just above it. */
+.has-touchpad .bug-trigger {
+  bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+}
+
+.bug-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-content: center;
+  padding: 20px;
+  background: rgba(11, 14, 20, 0.85);
+  backdrop-filter: blur(3px);
+}
+
+.bug-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(400px, 90vw);
+  padding: 20px 22px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #121826;
+}
+.bug-panel h2 { margin: 0; font-size: 19px; }
+.bug-panel textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+  background: #0b0e14;
+  color: var(--ink);
+  font: inherit;
+}
+.bug-panel__error { margin: 0; color: #ff7a90; font-size: 12px; }
+.bug-panel__error[hidden] { display: none; }
+.bug-panel__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.bug-panel__actions button {
+  padding: 9px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.14);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.bug-panel__send { border-color: #6ea8ff; background: rgba(110, 168, 255, 0.28); }
+.bug-panel__sent { margin: 6px 0; text-align: center; }
+
 .mute {
   align-self: center;
   width: 30px;
