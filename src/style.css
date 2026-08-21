@@ -319,6 +319,21 @@ kbd {
 /* The overlay must sit above the touch pad, or its buttons can't be reached. */
 .overlay { z-index: 1000; }
 
+/* The build stamp: tiny, muted, out of everyone's way in the bottom-right
+   corner, but above the overlays so it can be read from the pause and setup
+   screens — which is when someone checks whether a deploy has landed. */
+.build-stamp {
+  position: fixed;
+  right: 8px;
+  bottom: calc(2px + env(safe-area-inset-bottom, 0px));
+  z-index: 1100;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ---- Bug reports ---- */
 /* Bottom-left, same corner as the other apps (the install button owns
    bottom-right). Above every overlay so it's reachable from the pause screen,
