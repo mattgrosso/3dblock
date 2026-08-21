@@ -318,3 +318,21 @@ kbd {
 .overlay__actions button:hover { background: rgba(110, 168, 255, 0.38); }
 /* The overlay must sit above the touch pad, or its buttons can't be reached. */
 .overlay { z-index: 1000; }
+
+.mute {
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.mute:hover { border-color: #6ea8ff; }
+.mute--off { color: var(--muted); }

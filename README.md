@@ -18,11 +18,11 @@ yarn build      # typecheck + production bundle
 | | |
 |---|---|
 | Arrow keys | move within the pit |
-| <kbd>Q</kbd> / <kbd>W</kbd> | rotate around X |
-| <kbd>A</kbd> / <kbd>S</kbd> | rotate around Y |
-| <kbd>Z</kbd> / <kbd>X</kbd> | rotate around Z |
+| <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> | rotate around X / Y / Z |
+| <kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> | the same three axes, the other way |
 | <kbd>Space</kbd> | hard drop — worth far more points the higher you drop from |
 | <kbd>P</kbd> | pause |
+| <kbd>M</kbd> | mute |
 | <kbd>N</kbd> | new game |
 | <kbd>Esc</kbd> | setup — block set, pit size, starting level |
 | <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> | Flat Fun / 3D Mania / Out of Control |
@@ -63,6 +63,12 @@ the well, a solid piece would sit exactly between the camera and the spot it's
 about to land on. Being able to see through it is what makes the head-on view
 playable.
 
+## Sound
+
+The sound effects are BlockOut II's, which ships two sets: its own, and an
+emulation of the 1989 game's. The `*2` files are the second — its source
+selects those under `SOUND_BLOCKOUT` — so those are the ones here.
+
 ## Credits and licence
 
 BlockOut was created in 1989 by Aleksander Ustaszewski and Mirosław Zabłocki,
@@ -72,4 +78,5 @@ The piece definitions and scoring constants here are derived from
 [BlockOut II](https://sourceforge.net/projects/blockout/) by Jean-Luc Pons,
 which is GPLv2+. This project is therefore **GPLv2+** as well — see `LICENSE`.
 No BlockOut II code was copied; the game itself is written from scratch, and
-what was taken is the measured game data.
+what was taken is the measured game data and the sound effects in
+`public/sounds/`, both of which its licence covers.

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { Game } from '../game/game'
 import { extentOf } from '../game/rotation'
+import { polycubeEdges, polycubeGeometry } from './geometry'
 
 const CELL = 1
 
@@ -176,46 +177,33 @@ export class Renderer {
 
     const piece = this.game.piece
     const color = colorFor(piece.def.id + 1)
-    const landing = this.game.landingZ()
-    const box = new THREE.BoxGeometry(CELL * 0.94, CELL * 0.94, CELL * 0.94)
 
-    for (const [cx, cy, cz] of piece.cubes) {
-      const here = this.toWorld(piece.x + cx, piece.y + cy, piece.z + cz)
+    // One welded solid for the whole piece, so a bar looks like a bar rather
+    // than three cubes with seams. Built once and shared by the piece and its
+    // landing marker, which are the same shape in two places.
+    const solid = polycubeGeometry(piece.cubes)
+    const outline = polycubeEdges(solid)
 
-      // The falling piece is a wireframe, exactly as the original draws it.
-      // That is not decoration: looking straight down the well, a solid piece
-      // would sit precisely between the camera and the spot it is going to
-      // land on, hiding the one thing the player needs to see. Being able to
-      // see through it is what makes the head-on view playable at all. It
-      // turns solid the moment it locks.
-      const faces = new THREE.Mesh(
-        box.clone(),
-        new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity: 0.12,
-          depthWrite: false,
-        }),
-      )
-      faces.position.copy(here)
-      this.falling.add(faces)
+    // Wireframe while it falls, exactly as the original draws it: head-on, a
+    // solid piece would sit precisely between the camera and the spot it is
+    // about to land on. It turns solid the moment it locks.
+    const faces = new THREE.Mesh(
+      solid,
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, depthWrite: false }),
+    )
+    faces.position.copy(this.toWorld(piece.x, piece.y, piece.z))
+    this.falling.add(faces)
 
-      const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(box),
-        new THREE.LineBasicMaterial({ color }),
-      )
-      edges.position.copy(here)
-      this.falling.add(edges)
+    const edges = new THREE.LineSegments(outline, new THREE.LineBasicMaterial({ color }))
+    edges.position.copy(faces.position)
+    this.falling.add(edges)
 
-      // Where it will end up. Dimmer than the piece itself, and now genuinely
-      // visible through it.
-      const target = new THREE.LineSegments(
-        new THREE.EdgesGeometry(box),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 }),
-      )
-      target.position.copy(this.toWorld(piece.x + cx, piece.y + cy, landing + cz))
-      this.guide.add(target)
-    }
+    const landing = new THREE.LineSegments(
+      outline.clone(),
+      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4 }),
+    )
+    landing.position.copy(this.toWorld(piece.x, piece.y, this.game.landingZ()))
+    this.guide.add(landing)
   }
 
   private resize(): void {

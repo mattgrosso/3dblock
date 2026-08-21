@@ -4,6 +4,7 @@ import { PiecePreview } from './render/preview'
 import { SETUPS } from './game/sets'
 import { loadConfig, openSetup, type GameConfig } from './ui/setup'
 import { setupTouchControls, supportsTouch } from './ui/touch'
+import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
 import { setupInstall } from './install'
 
@@ -18,6 +19,7 @@ hud.innerHTML = `
     <div class="stat"><span>Layers</span><b id="layers">0</b></div>
     <div class="stat"><span>Cubes</span><b id="cubes">0</b></div>
     <div class="stat"><span>Best</span><b id="best">0</b></div>
+    <button type="button" id="mute" class="mute" title="Mute (M)">♪</button>
   </div>
   <div class="panel panel--next">
     <span class="label">Next</span>
@@ -27,7 +29,7 @@ hud.innerHTML = `
   </div>
   <div class="panel panel--keys">
     <div><kbd>&larr;</kbd><kbd>&rarr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd> move &middot;
-      <kbd>Q</kbd><kbd>W</kbd> rotate X &middot; <kbd>A</kbd><kbd>S</kbd> rotate Y &middot; <kbd>Z</kbd><kbd>X</kbd> rotate Z</div>
+      <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> rotate X / Y / Z &middot; <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd> reverse</div>
     <div><kbd>Space</kbd> drop &middot; <kbd>P</kbd> pause &middot; <kbd>N</kbd> new game &middot; <kbd>Esc</kbd> setup &middot; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> presets</div>
   </div>
   <div class="overlay" id="overlay" hidden>
@@ -53,6 +55,7 @@ let preview: PiecePreview
 let stage: HTMLDivElement
 let scores: ScoreEntry[] = []
 let recorded = false
+const sound = new Sound()
 
 const renderScoreTable = (highlight?: ScoreEntry): void => {
   if (!scores.length) {
@@ -89,6 +92,7 @@ const start = (chosen: GameConfig): void => {
   app.insertBefore(stage, hud)
 
   game = new Game({ ...config, startLevel: config.startLevel })
+  game.onEvent = (event) => sound.handle(event)
   renderer = new Renderer(stage, game)
   preview = new PiecePreview(el('preview'))
   scores = loadScores(config)
@@ -104,15 +108,28 @@ const start = (chosen: GameConfig): void => {
   if (import.meta.env.DEV) Object.assign(window, { game, renderer })
 }
 
+// A/S/D turn each axis one way; the key above each turns it back. Keeping the
+// pairs in columns rather than in a row means the reverse of any rotation is
+// always the key directly above it.
+const renderMute = (muted: boolean): void => {
+  el('mute').textContent = muted ? '♪̸' : '♪'
+  el('mute').classList.toggle('mute--off', muted)
+  el('mute').title = muted ? 'Unmute (M)' : 'Mute (M)'
+}
+
 const rotations: Record<string, [Parameters<Game['rotate']>[0], Parameters<Game['rotate']>[1]]> = {
-  q: ['x', 1], w: ['x', -1],
-  a: ['y', 1], s: ['y', -1],
-  z: ['z', 1], x: ['z', -1],
+  a: ['x', 1], q: ['x', -1],
+  s: ['y', 1], w: ['y', -1],
+  d: ['z', 1], e: ['z', -1],
 }
 
 window.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase()
 
+  // Any key is a user gesture, which is the only thing that can start audio.
+  void sound.unlock()
+
+  if (key === 'm') { renderMute(sound.toggleMute()); return }
   if (key === 'n') { start(config); return }
   // Not 'S' - that is already rotate-Y.
   if (key === 'escape') { openSetup(config, start); return }
@@ -151,6 +168,14 @@ el('overlay-setup').addEventListener('click', () => {
   el('overlay').hidden = true
   openSetup(config, start)
 })
+
+el('mute').addEventListener('click', () => {
+  void sound.unlock()
+  renderMute(sound.toggleMute())
+})
+renderMute(sound.isMuted)
+// A pointer press is a gesture too - on a phone it's the only one there is.
+window.addEventListener('pointerdown', () => void sound.unlock(), { once: true })
 
 start(config)
 setupInstall()

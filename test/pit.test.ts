@@ -230,3 +230,71 @@ describe('Game', () => {
     expect(game.landingZ()).toBe(7)
   })
 })
+
+describe('Game events', () => {
+  const always = (index: number, bagSize = 8) => () => (index + 0.5) / bagSize
+
+  const record = (game: Game): string[] => {
+    const seen: string[] = []
+    game.onEvent = (e) => seen.push(e)
+    return seen
+  }
+
+  it('reports a lock, and a clear when a layer completes', () => {
+    // 1x1 pit: one cube fills a layer outright, so it locks, clears and
+    // empties the pit all at once.
+    const game = new Game({ name: 't', set: 'FLAT', width: 1, height: 1, depth: 6, random: always(0) })
+    const seen = record(game)
+    game.hardDrop()
+    expect(seen).toContain('lock')
+    expect(seen).toContain('flush')
+    // flush and clear are exclusive: emptying the pit is the bigger event.
+    expect(seen).not.toContain('clear')
+  })
+
+  it('reports a clear without a flush when the pit still has cubes in it', () => {
+    // 2x1, so a layer needs both cells - otherwise every stray cube is itself a
+    // full layer and the pit always ends up empty.
+    const game = new Game({ name: 't', set: 'FLAT', width: 2, height: 1, depth: 6, random: always(0) })
+    game.pit.set(1, 0, 5, 5) // half the floor layer, waiting to be completed
+    game.pit.set(1, 0, 2, 5) // a leftover that no clear will reach
+    const seen = record(game)
+    game.hardDrop()
+    expect(seen).toContain('clear')
+    expect(seen).not.toContain('flush')
+    expect(game.pit.isEmpty()).toBe(false)
+  })
+
+  it('reports a blocked rotation', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 3, height: 3, depth: 10, random: always(2) })
+    for (let z = 0; z < game.pit.depth; z += 1) {
+      for (let y = 0; y < game.pit.height; y += 1) {
+        game.pit.set(0, y, z, 1)
+        game.pit.set(2, y, z, 1)
+      }
+    }
+    const seen = record(game)
+    expect(game.rotate('z', 1)).toBe(false)
+    expect(seen).toContain('rotateBlocked')
+  })
+
+  it('says nothing about rotations that succeed', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 5, height: 5, depth: 12, random: always(2) })
+    const seen = record(game)
+    expect(game.rotate('z', 1)).toBe(true)
+    expect(seen).not.toContain('rotateBlocked')
+  })
+
+  it('reports game over exactly once', () => {
+    const game = new Game({ name: 't', set: 'FLAT', width: 2, height: 2, depth: 4, random: always(0) })
+    for (let z = 0; z < game.pit.depth; z += 1) {
+      for (let y = 0; y < game.pit.height; y += 1) {
+        for (let x = 0; x < game.pit.width; x += 1) game.pit.set(x, y, z, 1)
+      }
+      game.pit.set(1, 1, z, 0)
+    }
+    const seen = record(game)
+    game.hardDrop()
+    expect(seen.filter((e) => e === 'gameOver')).toHaveLength(1)
+  })
+})

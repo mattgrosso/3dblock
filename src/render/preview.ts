@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { PieceDef } from '../game/pieces'
 import { normalize, type Cube } from '../game/rotation'
+import { polycubeEdges, polycubeGeometry } from './geometry'
 
 /**
  * The next piece, shown from an angle and slowly turning.
@@ -43,32 +44,31 @@ export class PiecePreview {
 
     const cubes = normalize(def.cubes.map((c) => [...c] as unknown as Cube))
     const color = new THREE.Color().setHSL(((def.id + 1) * 0.137) % 1, 0.62, 0.55)
-    const box = new THREE.BoxGeometry(0.92, 0.92, 0.92)
 
-    // Centre the piece on the pivot so it spins about itself rather than
-    // orbiting off the edge of the panel.
-    const centre = cubes
-      .reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0])
-      .map((v) => v / cubes.length) as [number, number, number]
+    // The same welded geometry the pit uses, so the preview and the piece that
+    // arrives are recognisably the same object.
+    const solid = polycubeGeometry(cubes)
 
-    for (const [x, y, z] of cubes) {
-      const at = new THREE.Vector3(x - centre[0], -(y - centre[1]), -(z - centre[2]))
+    // Centre it on the pivot so it spins about itself rather than orbiting off
+    // the edge of the panel.
+    solid.computeBoundingBox()
+    const centre = new THREE.Vector3()
+    solid.boundingBox!.getCenter(centre)
+    solid.translate(-centre.x, -centre.y, -centre.z)
 
-      const mesh = new THREE.Mesh(box.clone(), new THREE.MeshLambertMaterial({ color }))
-      mesh.position.copy(at)
-      this.pivot.add(mesh)
+    const mesh = new THREE.Mesh(solid, new THREE.MeshLambertMaterial({ color }))
+    this.pivot.add(mesh)
 
-      const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(box),
-        new THREE.LineBasicMaterial({ color: 0x0b0e14 }),
-      )
-      edges.position.copy(at)
-      this.pivot.add(edges)
-    }
+    const edges = new THREE.LineSegments(
+      polycubeEdges(solid),
+      new THREE.LineBasicMaterial({ color: 0x0b0e14 }),
+    )
+    this.pivot.add(edges)
 
     // Pull the camera back for the bigger pieces so a five-cube bar still fits.
-    const reach = Math.max(...cubes.flatMap((c) => c.map((v, i) => Math.abs(v - centre[i]!))))
-    const distance = 5.5 + reach * 1.5
+    const size = new THREE.Vector3()
+    solid.boundingBox!.getSize(size)
+    const distance = 5.5 + Math.max(size.x, size.y, size.z) * 0.75
     this.camera.position.setLength(distance)
   }
 

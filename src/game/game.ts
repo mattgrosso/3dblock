@@ -6,6 +6,13 @@ import { levelFor, scoreFor, stepTimeFor } from './scoring'
 
 export type Phase = 'playing' | 'over'
 
+/**
+ * Things worth reacting to. Emitted rather than polled: a cleared layer is an
+ * instant, and a watcher comparing counts between frames has to invent a way to
+ * tell "two layers once" from "one layer twice".
+ */
+export type GameEvent = 'lock' | 'clear' | 'flush' | 'levelUp' | 'rotateBlocked' | 'gameOver'
+
 export interface FallingPiece {
   readonly def: PieceDef
   cubes: Cube[]
@@ -51,6 +58,7 @@ export class Game {
   paused = false
   /** Set on the frame a clear happens, so the renderer can react to it. */
   lastClear: ClearEvent | null = null
+  onEvent: ((event: GameEvent) => void) | null = null
 
   private sinceStep = 0
 
@@ -141,10 +149,16 @@ export class Game {
     // still doesn't fit. Searching a spread of nearby offsets instead would
     // let rotations succeed that the real game rejects.
     const [sx, sy, sz] = this.pit.outOfBoundsShift(candidate)
-    if (sx === 0 && sy === 0 && sz === 0) return false
+    if (sx === 0 && sy === 0 && sz === 0) {
+      this.emit('rotateBlocked')
+      return false
+    }
 
     const shifted = { ...candidate, x: candidate.x + sx, y: candidate.y + sy, z: candidate.z + sz }
-    if (this.pit.collides(shifted)) return false
+    if (this.pit.collides(shifted)) {
+      this.emit('rotateBlocked')
+      return false
+    }
 
     this.piece.cubes = rotated
     this.piece.x = shifted.x
@@ -179,6 +193,10 @@ export class Game {
     return this.piece.z + this.pit.dropDistance(this.placement())
   }
 
+  private emit(event: GameEvent): void {
+    this.onEvent?.(event)
+  }
+
   private lock(): void {
     this.pit.lock(this.placement(), this.piece.def.id + 1)
     this.cubesPlayed += this.piece.def.cubes.length
@@ -201,9 +219,17 @@ export class Game {
     this.score += gained
     this.layersCleared += layers.length
     this.lastClear = layers.length || pitEmptied ? { layers, gained, pitEmptied } : null
+
+    const previousLevel = this.level
     this.level = levelFor(this.startLevel, this.cubesPlayed, this.pit.width, this.pit.height)
 
+    this.emit('lock')
+    if (pitEmptied) this.emit('flush')
+    else if (layers.length) this.emit('clear')
+    if (this.level > previousLevel) this.emit('levelUp')
+
     this.spawn()
+    if (this.phase === 'over') this.emit('gameOver')
   }
 
   get stepTime(): number {

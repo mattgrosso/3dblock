@@ -34,7 +34,7 @@ export default defineConfig({
         // Everything the game needs is emitted at build time and fingerprinted,
         // so the whole thing can be precached and it runs offline outright -
         // no runtime caching rules, no network in the play path at all.
-        globPatterns: ['**/*.{js,css,html,png,ico,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,ico,webmanifest,wav}'],
       },
     }),
   ],
