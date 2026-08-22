@@ -1,6 +1,7 @@
 import { BLOCK_SETS, PIT_LIMITS, SETUPS, type BlockSet, type Setup } from '../game/sets'
 import { MAX_LEVEL } from '../game/scoring'
 import { DEFAULT_THEME, THEME_CHOICES, THEMES } from '../render/themes'
+import { buildStamp } from '../buildStamp'
 
 export interface GameConfig extends Setup {
   readonly startLevel: number
@@ -143,6 +144,13 @@ export const openSetup = (
       <p class="setup__note muted" id="setup-note"></p>
 
       <button type="button" class="setup__start" id="setup-start">Play</button>
+
+      <!-- The house build stamp. Here rather than in the corner of the page:
+           this screen is the one place you're standing still, and a line
+           floating over a falling piece is the last thing the play area
+           needs. It's the first thing you see on load and one button away
+           from game over, which is when anyone actually asks the question. -->
+      <p class="build-stamp">${buildStamp()}</p>
     </div>
   `
   document.body.appendChild(root)

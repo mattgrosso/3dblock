@@ -1,5 +1,9 @@
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+// Imported rather than read off disk: this project has no @types/node, and a
+// JSON import is the one way to reach package.json that `tsc --noEmit` can
+// check on its own.
+import pkg from './package.json'
 
 export default defineConfig({
   // Absolute, not './'. A service worker's scope is derived from where the
@@ -7,9 +11,12 @@ export default defineConfig({
   // at the root of its own subdomain, so say so.
   base: '/',
   build: { target: 'es2022' },
-  // When this bundle was built, for the stamp in the corner of the page —
-  // so a playtest can tell at a glance whether it's looking at new code.
-  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
+  // The build stamp (see src/buildStamp.ts) — evaluated when the build runs,
+  // so it names the code actually in the bundle, not when the page loaded.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     VitePWA({
       // The game is a single bundle with no server state, so there is nothing

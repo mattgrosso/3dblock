@@ -11,6 +11,7 @@ import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highsco
 import { cleanName, fetchTop, qualifies, rememberName, rememberedName, submitScore, type GlobalEntry } from './game/leaderboard'
 import { setupInstall } from './install'
 import { setupAutoUpdate } from './appUpdate'
+import { buildStamp } from './buildStamp'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -61,19 +62,6 @@ hud.innerHTML = `
 app.appendChild(hud)
 
 const el = (id: string) => document.getElementById(id)!
-
-// When this bundle was built, in the corner — so a playtest can tell at a
-// glance whether the deploy it's waiting on has actually arrived. High
-// z-index on purpose: it should be legible from the pause and setup screens
-// too, which is exactly when someone goes looking for it.
-const stamp = document.createElement('div')
-stamp.className = 'build-stamp'
-stamp.textContent =
-  new Date(__BUILD_TIME__).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  }) + (import.meta.env.DEV ? ' (dev)' : '')
-stamp.title = `Built ${new Date(__BUILD_TIME__).toLocaleString()}`
-document.body.appendChild(stamp)
 
 let config: GameConfig = loadConfig() ?? { ...SETUPS[0]!, startLevel: 0, theme: DEFAULT_THEME, guide: false }
 let game: Game
@@ -310,6 +298,7 @@ setupBugReport(
     phase: game.phase,
     paused: game.paused,
     touch: document.body.classList.contains('has-touchpad'),
+    build: buildStamp(),
   }),
   // Pause before the panel opens, or the piece keeps falling while they type.
   () => { if (game.phase === 'playing' && !game.paused) togglePause() },
