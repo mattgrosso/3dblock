@@ -10,6 +10,7 @@ import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
 import { cleanName, fetchTop, qualifies, rememberName, rememberedName, submitScore, type GlobalEntry } from './game/leaderboard'
 import { setupInstall } from './install'
+import { setupAutoUpdate } from './appUpdate'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -319,17 +320,11 @@ if (!stored) openSetup(config, start)
 // The service worker autoUpdates, but the PAGE keeps running whatever build
 // it booted with until a reload - which is how "I don't hear sounds" happened
 // on a build that shipped sound: the tab was one deploy behind (2026-08-21).
-// When a new worker takes over and the session hasn't really begun, take the
-// update now. Mid-game, leave it be - it lands on the next launch.
-if ('serviceWorker' in navigator) {
-  // On the very first visit the initial worker also fires controllerchange
-  // as it claims the page; that one is not an update.
-  let hadController = Boolean(navigator.serviceWorker.controller)
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController) { hadController = true; return }
-    if (game.cubesPlayed === 0) location.reload()
-  })
-}
+// That was first patched with a controllerchange listener that reloaded when
+// no cubes had been played; appUpdate.ts now owns the whole job - it notices a
+// deploy by comparing bundle filenames rather than trusting worker lifecycle
+// events, and only reloads at a moment that costs the player nothing.
+setupAutoUpdate(() => game)
 
 /**
  * One frame's worth of work, separated from the requestAnimationFrame driver
