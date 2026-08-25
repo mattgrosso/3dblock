@@ -412,8 +412,12 @@ kbd {
   border: 1px solid var(--edge);
   border-radius: 50%;
   background: var(--panel);
+  color: var(--ink, #e8e8f0);
   font-size: 18px;
-  line-height: 1;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(6px);
   touch-action: manipulation;
