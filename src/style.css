@@ -426,6 +426,24 @@ kbd {
 /* The overlay must sit above the touch pad, or its buttons can't be reached. */
 .overlay { z-index: 1000; }
 
+/* The way home — the hub's ring-of-seats mark plus the site name, same
+   element as the five sibling games' menus carry. */
+.hub-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e8b93a;
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+.hub-link:hover,
+.hub-link:active { opacity: 1; }
+
 /* The house build stamp, at the foot of the setup panel: present, readable,
    never competing for attention — and never over the play area. */
 .build-stamp {

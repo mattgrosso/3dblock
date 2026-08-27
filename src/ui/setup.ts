@@ -145,6 +145,20 @@ export const openSetup = (
 
       <button type="button" class="setup__start" id="setup-start">Play</button>
 
+      <!-- The way home. Matt: "From the game lobby, I need a way to get back
+           to... the main lobby." Same mark and wording as the five sibling
+           games; the icon is the hub's own ring-of-seats logo. -->
+      <a class="hub-link" href="https://aroundtableround.com/" title="All the games">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.4" opacity="0.5" />
+          <circle cx="20" cy="12" r="1.7" fill="currentColor" /><circle cx="17.66" cy="17.66" r="1.7" fill="currentColor" />
+          <circle cx="12" cy="20" r="1.7" fill="currentColor" /><circle cx="6.34" cy="17.66" r="1.7" fill="currentColor" />
+          <circle cx="4" cy="12" r="1.7" fill="currentColor" /><circle cx="6.34" cy="6.34" r="1.7" fill="currentColor" />
+          <circle cx="12" cy="4" r="1.7" fill="currentColor" /><circle cx="17.66" cy="6.34" r="1.7" fill="currentColor" />
+        </svg>
+        Around Table Round
+      </a>
+
       <!-- The house build stamp. Here rather than in the corner of the page:
            this screen is the one place you're standing still, and a line
            floating over a falling piece is the last thing the play area
