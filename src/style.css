@@ -311,6 +311,47 @@ kbd {
   background: rgba(110, 168, 255, 0.22);
 }
 
+/* The rotate faces are drawn, not typed - see touch.ts's rotationIcon. */
+.touchpad__btn--rotate svg { width: 78%; height: 78%; display: block; }
+.touchpad__btn--rotate { display: grid; place-items: center; padding: 0; }
+
+/* ---- Tablet layout -------------------------------------------------------
+   Matt, on an iPad: "If we want to pretend these controls work on an iPad, we
+   need to move the drop button to the right hand side above the rotate
+   buttons, and we need to make the rotate buttons larger."
+
+   On a phone the three groups sit in a row across the bottom because that is
+   all the width there is. A tablet has width to spare and the problem is
+   instead reach: the thumbs are at the two bottom corners, so the pad becomes
+   two corner clusters - d-pad bottom-left, and drop stacked above the
+   rotations bottom-right - with nothing stranded in the middle.
+
+   Keyed off .has-touchpad rather than a pointer media query, same as the rule
+   below: the two can disagree, and ?touch=1 bypasses the query entirely. */
+@media (min-width: 720px) {
+  .has-touchpad .touchpad {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      '.    . centre'
+      'dpad . rotations';
+    align-items: end;
+    gap: 14px;
+    padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .has-touchpad .touchpad__dpad { grid-area: dpad; gap: 8px; }
+  .has-touchpad .touchpad__centre { grid-area: centre; justify-self: end; width: 100%; }
+  .has-touchpad .touchpad__rotations { grid-area: rotations; gap: 8px; }
+
+  /* Bigger targets all round - there is room, and these are the controls the
+     whole game runs on. */
+  .has-touchpad .touchpad__dpad .touchpad__btn { width: 68px; height: 68px; font-size: 24px; }
+  .has-touchpad .touchpad__rotations .touchpad__btn { width: 82px; height: 64px; }
+  .has-touchpad .touchpad__btn--drop { width: 100%; height: 64px; font-size: 17px; }
+  .has-touchpad .touchpad__btn--pause { height: 40px; font-size: 13px; }
+}
+
 /* The key hints are keyboard-only; wherever the pad is present it replaces
    them. Keyed off the pad, not a media query - see touch.ts. */
 .has-touchpad .panel--keys { display: none; }
