@@ -148,6 +148,10 @@ export const openSetup = (
       <!-- The way home. Matt: "From the game lobby, I need a way to get back
            to... the main lobby." Same mark and wording as the five sibling
            games; the icon is the hub's own ring-of-seats logo. -->
+      <!-- install.ts re-homes its button into this slot each time the setup
+           screen opens. Empty if the browser has nothing to offer. -->
+      <div class="setup__install"></div>
+
       <a class="hub-link" href="https://aroundtableround.com/" title="All the games">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.4" opacity="0.5" />
@@ -168,6 +172,10 @@ export const openSetup = (
     </div>
   `
   document.body.appendChild(root)
+  // install.ts listens for this and moves its button into .setup__install.
+  // The setup screen is rebuilt every time it opens, so the button has to be
+  // re-homed rather than placed once.
+  window.dispatchEvent(new Event('blockout:setup-open'))
 
   const sel = <T extends HTMLElement>(id: string): T => root.querySelector<T>('#' + id)!
   const setSel = sel<HTMLSelectElement>('setup-set')

@@ -121,24 +121,27 @@ kbd {
 
 /* Add-to-home-screen. Sits out of the way bottom-right; hidden entirely when
    the game is already running from a home-screen icon. */
+/* Quiet, and on the setup screen only - see install.ts for why it moved off
+   the corner of the window. Matched to the hub link beside it. */
+.setup__install { display: flex; justify-content: center; }
+
 .install-button {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 900;
-  padding: 8px 16px;
-  border: 1px solid var(--edge);
-  border-radius: 2rem;
-  background: var(--panel);
-  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--muted);
   font: inherit;
   font-size: 12px;
-  font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  backdrop-filter: blur(6px);
+  opacity: 0.8;
 }
-.install-button:hover { border-color: #6ea8ff; }
+.install-button:hover,
+.install-button:focus-visible { opacity: 1; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 .install-button[hidden] { display: none; }
 
 .install-backdrop {

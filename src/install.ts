@@ -53,13 +53,30 @@ export const setupInstall = (): void => {
 
   let deferred: BeforeInstallPromptEvent | null = null
 
+  // Mounted on the SETUP SCREEN, not fixed to the corner of the window.
+  //
+  // Matt, 2026-08-27: "the install button should only appear on the hub for
+  // each game, and make sure it's not interfering with anything else. It's
+  // not a main use case." It used to be a pill pinned bottom-right at z-index
+  // 900, which on this game meant hovering over the pit while a piece was
+  // falling. The setup screen is where somebody is standing still.
+  //
+  // The setup screen is torn down and rebuilt each time it opens, so the
+  // button is re-homed on every showSetup() - see the hook below. Falls back
+  // to the body if setup somehow isn't mounted, so the offer never vanishes.
   const button = document.createElement('button')
   button.type = 'button'
   button.className = 'install-button'
   button.hidden = true
   button.title = 'Add Blockout to your home screen'
-  button.innerHTML = 'Install'
-  document.body.appendChild(button)
+  button.innerHTML = 'Add to Home Screen'
+
+  const home = (): void => {
+    const slot = document.querySelector('.setup__install')
+    ;(slot ?? document.body).appendChild(button)
+  }
+  home()
+  window.addEventListener('blockout:setup-open', home)
 
   const showIosSteps = (): void => {
     document.body.appendChild(iosPanel())
