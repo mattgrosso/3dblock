@@ -1,3 +1,4 @@
+import { withAuth } from '../lib/anonAuth'
 /**
  * In-app bug reporting, the same pattern as the other apps (Cinema Roll ->
  * Meal Hat -> Thunderstoner): a small always-visible button, a plain textarea,
@@ -38,7 +39,7 @@ const writeStash = (reports: Report[]): void => {
 }
 
 const post = async (report: Report): Promise<void> => {
-  const response = await fetch(ENDPOINT, {
+  const response = await fetch(await withAuth(ENDPOINT), {
     method: 'POST',
     // createdAt is stamped by the server on the eventual write; a stashed
     // report keeps its clientCreatedAt as the moment it was actually filed.

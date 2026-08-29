@@ -1,4 +1,5 @@
 import { setupKey } from './highscores'
+import { withAuth } from '../lib/anonAuth'
 import type { Setup } from './sets'
 
 // The global leaderboard (bug report: "We need leader boards and high
@@ -7,8 +8,10 @@ import type { Setup } from './sets'
 // not comparable and the scoring constants explicitly differ by depth.
 //
 // Backed by the games hub's Firebase project over plain REST, the same
-// SDK-free arrangement as bug reports: the `blockoutScores` node is public
-// to read (names and numbers, nothing else), push-only to write, validated
+// SDK-free arrangement as bug reports. Since 2026-08-29 both directions
+// carry a silent anonymous auth token (lib/anonAuth.ts) - the rules require
+// auth != null, which is what quiets Firebase's daily insecure-rules email
+// without this game growing a sign-in. Still push-only to write, validated
 // and score-indexed by the rules in the thunder repo's database.rules.json.
 
 const BASE = 'https://thunderstoner-876f8-default-rtdb.firebaseio.com/blockoutScores'
@@ -51,7 +54,7 @@ const url = (setup: Setup, query = ''): string =>
 export async function fetchTop(setup: Setup): Promise<GlobalEntry[]> {
   // A real indexed query - .indexOn ["score"] in the rules is what keeps
   // this from downloading the whole node to answer it.
-  const response = await fetch(url(setup, `?orderBy=%22score%22&limitToLast=${TOP_LIMIT}`))
+  const response = await fetch(await withAuth(url(setup, `?orderBy=%22score%22&limitToLast=${TOP_LIMIT}`)))
   if (!response.ok) throw new Error(`Leaderboard fetch failed: ${response.status}`)
   return toBoard(await response.json())
 }
@@ -60,7 +63,7 @@ export async function submitScore(
   setup: Setup,
   entry: { name: string; score: number; level: number; layers: number },
 ): Promise<void> {
-  const response = await fetch(url(setup), {
+  const response = await fetch(await withAuth(url(setup)), {
     method: 'POST',
     body: JSON.stringify({
       name: cleanName(entry.name),
