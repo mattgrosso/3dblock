@@ -562,3 +562,18 @@ kbd {
    — the likely story behind "I've tried toggling the button but nothing is
    coming out" (bug report 2026-08-21). CSS strikethrough always renders. */
 .mute--off { color: var(--muted); opacity: 0.55; text-decoration: line-through; }
+
+/* Double-tap zoom: off. Reported 2026-08-28, on every game at once: "double
+   tapping when I'm playing the game, if I double tapped it quickly, it zooms
+   in the whole page - I'd like to prevent that from happening."
+
+   `touch-action: manipulation` drops the double-tap-to-zoom gesture on this
+   subtree while LEAVING PINCH-ZOOM ALONE. That distinction is why it's used
+   here rather than `user-scalable=no` on the viewport tag: that would take
+   pinch-zoom away too, which is a real accessibility loss for anyone who
+   needs to magnify - and iOS Safari has ignored it since iOS 10 anyway, so
+   it would not even have worked. */
+html,
+body {
+  touch-action: manipulation;
+}
