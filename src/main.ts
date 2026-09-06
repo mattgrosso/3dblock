@@ -9,6 +9,7 @@ import { DEFAULT_THEME, resolveTheme } from './render/themes'
 import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
 import { cleanName, fetchTop, qualifies, rememberName, rememberedName, submitScore, type GlobalEntry } from './game/leaderboard'
+import { recordPlay } from './game/plays'
 import { setupInstall } from './install'
 import { setupAutoUpdate } from './appUpdate'
 import { buildStamp } from './buildStamp'
@@ -151,7 +152,18 @@ const start = (chosen: GameConfig): void => {
   app.insertBefore(stage, hud)
 
   game = new Game({ ...config, startLevel: config.startLevel })
-  game.onEvent = (event) => sound.handle(event)
+  // A game counts toward the start screen's "most popular" once a piece has
+  // actually landed - not on start, or every press of N and 1-4 while
+  // flipping between presets would count as a game. Dev runs stay out of
+  // the production tally.
+  let counted = import.meta.env.DEV
+  game.onEvent = (event) => {
+    sound.handle(event)
+    if (event === 'lock' && !counted) {
+      counted = true
+      recordPlay(config).catch(() => { /* a lost count is a rounding error */ })
+    }
+  }
   // Resolved per game, which is what makes 'Random' a new look every round.
   const theme = resolveTheme(config.theme)
   renderer = new Renderer(stage, game, theme, config.guide)

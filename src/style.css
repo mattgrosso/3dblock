@@ -207,6 +207,21 @@ kbd {
 }
 .setup__preset:hover { background: rgba(110, 168, 255, 0.16); border-color: #6ea8ff; }
 .setup__preset .muted { font-size: 11px; }
+/* Which preset to pick: small pills under the pit size, same blue as the
+   hover state so they read as part of the button rather than a sticker. */
+.setup__badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.setup__badge {
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #9cc4ff;
+  background: rgba(110, 168, 255, 0.16);
+  border: 1px solid rgba(110, 168, 255, 0.35);
+}
 
 .setup__row {
   display: flex;

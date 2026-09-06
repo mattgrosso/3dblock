@@ -2,6 +2,8 @@ import { BLOCK_SETS, PIT_LIMITS, SETUPS, type BlockSet, type Setup } from '../ga
 import { MAX_LEVEL } from '../game/scoring'
 import { DEFAULT_THEME, THEME_CHOICES, THEMES } from '../render/themes'
 import { buildStamp } from '../buildStamp'
+import { setupKey } from '../game/highscores'
+import { fetchHighlights, type Highlights } from '../game/plays'
 
 export interface GameConfig extends Setup {
   readonly startLevel: number
@@ -74,6 +76,37 @@ const SET_BLURB: Record<BlockSet, string> = {
   EXTENDED: 'all 41 pieces',
 }
 
+/** A badge's text and the definition behind it, for anyone who hovers. */
+export const badgeLabels = (highlights: Highlights): Record<string, { text: string; title: string }[]> => {
+  const out: Record<string, { text: string; title: string }[]> = {}
+  const add = (key: string | undefined, text: string, title: string): void => {
+    if (!key) return
+    ;(out[key] ??= []).push({ text, title })
+  }
+  add(highlights.popular, 'Most popular', 'More games played than any other preset, all time')
+  add(highlights.active, 'Most active', 'The most games played in the last 7 days')
+  const record = highlights.beatableScore === undefined ? '' : ` · ${highlights.beatableScore.toLocaleString()}`
+  add(highlights.beatable, `Easiest record to beat${record}`, 'The lowest world #1 score of any preset - the smallest number to top')
+  return out
+}
+
+const renderBadges = (root: HTMLElement, highlights: Highlights): void => {
+  const labels = badgeLabels(highlights)
+  root.querySelectorAll<HTMLElement>('.setup__badges').forEach((slot) => {
+    const badges = labels[slot.dataset.badges ?? ''] ?? []
+    slot.replaceChildren(
+      ...badges.map(({ text, title }) => {
+        const badge = document.createElement('em')
+        badge.className = 'setup__badge'
+        badge.textContent = text
+        badge.title = title
+        return badge
+      }),
+    )
+    slot.hidden = badges.length === 0
+  })
+}
+
 export const openSetup = (
   current: GameConfig | null,
   onStart: (config: GameConfig) => void,
@@ -90,6 +123,7 @@ export const openSetup = (
         ${SETUPS.map(
           (s, i) => `<button type="button" class="setup__preset" data-preset="${i}">
             <b>${s.name}</b><span class="muted">${s.set} · ${s.width}×${s.height}×${s.depth}</span>
+            <span class="setup__badges" data-badges="${setupKey(s)}"></span>
           </button>`,
         ).join('')}
       </div>
@@ -233,6 +267,15 @@ export const openSetup = (
   for (const el of [setSel, widthSel, heightSel, depthSel, levelSel, themeSel]) {
     el.addEventListener('change', describe)
   }
+
+  // Which preset to pick (bug report 2026-09-02). Filled in after the fact,
+  // from the network, and only where there's a clear answer - a fresh
+  // database shows no badges at all rather than crowning a preset with two
+  // plays. See plays.ts for the definitions.
+  void fetchHighlights().then((highlights) => {
+    if (!root.isConnected) return // Esc, then Play, before the answer came
+    renderBadges(root, highlights)
+  })
 
   root.querySelectorAll<HTMLButtonElement>('.setup__preset').forEach((button) => {
     button.addEventListener('click', () => {
