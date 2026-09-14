@@ -2,7 +2,8 @@ import { BLOCK_SETS, PIT_LIMITS, SETUPS, type BlockSet, type Setup } from '../ga
 import { MAX_LEVEL } from '../game/scoring'
 import { DEFAULT_THEME, THEME_CHOICES, THEMES } from '../render/themes'
 import { buildStamp } from '../buildStamp'
-import { setupKey } from '../game/highscores'
+import { loadScores, setupKey, type ScoreEntry } from '../game/highscores'
+import { fetchTop, type GlobalEntry } from '../game/leaderboard'
 import { fetchHighlights, type Highlights } from '../game/plays'
 
 export interface GameConfig extends Setup {
@@ -107,6 +108,43 @@ const renderBadges = (root: HTMLElement, highlights: Highlights): void => {
   })
 }
 
+// The high scores for whatever is selected, on the setup screen itself (bug
+// report 2026-09-11: "It would be cool to be able to see the high scores on
+// the setup page for whatever setup I have selected"). Both boards exist
+// already - the local one per setup in localStorage, the world one in the
+// hub's database - but until now you had to lose a game to see either.
+export const SCORE_LINES = 3
+
+/**
+ * The lines the two columns show, as plain text. Names on the world board
+ * are other people's input, so they go into the page as textContent - which
+ * is why this returns strings and never markup.
+ */
+export const scoreLines = (
+  local: readonly ScoreEntry[],
+  world: readonly GlobalEntry[],
+  limit = SCORE_LINES,
+): { you: string[]; world: string[] } => ({
+  you: local.slice(0, limit).map((entry) => {
+    const date = new Date(entry.at)
+    const when = Number.isNaN(date.getTime())
+      ? ''
+      : ` · ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+    return `${entry.score.toLocaleString()} · lvl ${entry.level}${when}`
+  }),
+  world: world.slice(0, limit).map((entry) => `${entry.name} · ${entry.score.toLocaleString()}`),
+})
+
+const fillLines = (list: HTMLElement, lines: readonly string[], empty: string): void => {
+  const items = (lines.length ? lines : [empty]).map((text) => {
+    const item = document.createElement('li')
+    item.textContent = text
+    if (!lines.length) item.className = 'muted'
+    return item
+  })
+  list.replaceChildren(...items)
+}
+
 export const openSetup = (
   current: GameConfig | null,
   onStart: (config: GameConfig) => void,
@@ -176,6 +214,20 @@ export const openSetup = (
       <div class="setup__swatches" id="setup-swatches" aria-hidden="true"></div>
 
       <p class="setup__note muted" id="setup-note"></p>
+
+      <!-- The boards for the setup as currently chosen: yours and the world's.
+           Re-filled on every change above, so tweaking the pit shows what
+           that pit's record is before you commit to it. -->
+      <div class="setup__scores" id="setup-scores">
+        <div>
+          <span class="setup__scores-head">Your best here</span>
+          <ol class="setup__scores-list" id="setup-scores-you"></ol>
+        </div>
+        <div>
+          <span class="setup__scores-head">World</span>
+          <ol class="setup__scores-list" id="setup-scores-world"></ol>
+        </div>
+      </div>
 
       <button type="button" class="setup__start" id="setup-start">Play</button>
 
@@ -250,6 +302,37 @@ export const openSetup = (
     else if (area < 25) parts.push('A narrow pit fills fast, and pays less per layer.')
     if (c.startLevel > 0) parts.push('Starting high is pure difficulty: it does not shorten the climb.')
     sel<HTMLElement>('setup-note').textContent = parts.filter(Boolean).join(' ')
+    renderScores(c)
+  }
+
+  // The world board is one fetch per setup, remembered for as long as this
+  // screen is open, so flipping between presets doesn't re-ask. A sequence
+  // number drops a slow answer for a setup you've already moved on from.
+  const worldBoards = new Map<string, GlobalEntry[]>()
+  let scoresSeq = 0
+  const renderScores = (c: GameConfig): void => {
+    const key = setupKey(c)
+    const you = sel<HTMLElement>('setup-scores-you')
+    const world = sel<HTMLElement>('setup-scores-world')
+    fillLines(you, scoreLines(loadScores(c), []).you, 'No scores here yet')
+
+    const known = worldBoards.get(key)
+    if (known) {
+      fillLines(world, scoreLines([], known).world, 'Nobody has posted here yet')
+      return
+    }
+    fillLines(world, [], 'Looking…')
+    const seq = ++scoresSeq
+    void fetchTop(c)
+      .then((board) => {
+        worldBoards.set(key, board)
+        if (seq !== scoresSeq || !root.isConnected) return
+        fillLines(world, scoreLines([], board).world, 'Nobody has posted here yet')
+      })
+      .catch(() => {
+        // Offline: the local column still answers the question.
+        if (seq === scoresSeq && root.isConnected) fillLines(world, [], "Couldn't reach the board")
+      })
   }
 
   // Six chips of the selected theme's layer palette; Random keeps its secret.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nameFor, normalizeConfig } from '../src/ui/setup'
+import { nameFor, normalizeConfig, scoreLines, SCORE_LINES } from '../src/ui/setup'
 import { SETUPS, PIT_LIMITS } from '../src/game/sets'
 import { setupKey } from '../src/game/highscores'
 import { THEME_CHOICES } from '../src/render/themes'
@@ -81,5 +81,43 @@ describe('normalizeConfig', () => {
       expect(depth).toBeGreaterThanOrEqual(PIT_LIMITS.minDepth)
       expect(depth).toBeLessThanOrEqual(PIT_LIMITS.maxDepth)
     }
+  })
+})
+
+// Bug report (2026-09-11): "It would be cool to be able to see the high
+// scores on the setup page for whatever setup I have selected."
+describe('scoreLines', () => {
+  const local = [
+    { score: 49838, level: 8, layers: 46, cubes: 1260, at: '2026-09-11T14:53:30.000Z' },
+    { score: 12000, level: 3, layers: 12, cubes: 300, at: '2026-09-01T10:00:00.000Z' },
+    { score: 9000, level: 2, layers: 9, cubes: 200, at: '2026-08-20T10:00:00.000Z' },
+    { score: 100, level: 0, layers: 1, cubes: 20, at: '2026-08-01T10:00:00.000Z' },
+  ]
+  const world = [
+    { name: 'Seth', score: 61200, level: 9, layers: 50, at: 1 },
+    { name: 'Matt', score: 49838, level: 8, layers: 46, at: 2 },
+  ]
+
+  it('shows the top few of each board, best first as given', () => {
+    const lines = scoreLines(local, world)
+    expect(lines.you).toHaveLength(SCORE_LINES)
+    expect(lines.you[0]).toMatch(/^49,838 · lvl 8 · /)
+    expect(lines.world).toEqual(['Seth · 61,200', 'Matt · 49,838'])
+  })
+
+  it('leaves the date off a run whose timestamp is unreadable', () => {
+    const lines = scoreLines([{ ...local[0]!, at: 'not a date' }], [])
+    expect(lines.you).toEqual(['49,838 · lvl 8'])
+  })
+
+  it('returns nothing for an empty board, so the screen can say so', () => {
+    expect(scoreLines([], [])).toEqual({ you: [], world: [] })
+  })
+
+  // Names are other people's input. They travel as text and are inserted
+  // as textContent - a name like this must never become markup.
+  it('passes a name through untouched, as text', () => {
+    const lines = scoreLines([], [{ name: '<b>x</b>', score: 5, level: 0, layers: 0, at: 0 }])
+    expect(lines.world).toEqual(['<b>x</b> · 5'])
   })
 })
