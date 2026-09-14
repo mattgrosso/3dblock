@@ -100,3 +100,34 @@ export async function withAuth (url: string): Promise<string> {
   const token = await anonToken()
   return `${url}${url.includes('?') ? '&' : '?'}auth=${encodeURIComponent(token)}`
 }
+
+/**
+ * The uid inside a Firebase ID token (its `sub` claim), or null if the token
+ * can't be read. Pure: the JWT payload is plain base64url JSON, no
+ * verification needed to read our own session's uid back out of it.
+ */
+export function uidFromIdToken (token: string): string | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
+    const claims = JSON.parse(atob(padded)) as { sub?: unknown; user_id?: unknown }
+    const uid = claims.sub ?? claims.user_id
+    return typeof uid === 'string' && uid ? uid : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The anonymous session's uid, for naming a bug report (ui/bugreport.ts).
+ * Blockout has no sign-in of any kind, but this uid is stable per browser,
+ * so a run of reports reads as one device instead of a string of strangers.
+ * Read from the cached token even when stale - the uid survives a refresh -
+ * so this costs no network unless there is no session at all yet.
+ */
+export async function anonUid (): Promise<string | null> {
+  const cached = read()
+  if (cached) return uidFromIdToken(cached.idToken)
+  return uidFromIdToken(await anonToken())
+}

@@ -57,8 +57,14 @@ for (const [id, report] of entries) {
   console.log(`── ${id}`);
   console.log(`   ${when}`);
   console.log(`   ${report.transcript}`);
+  // Reporter fields are written since 2026-09-14. Blockout has no sign-in,
+  // so this is the anonymous session's uid: stable per browser, so a run of
+  // reports from one device reads as one device.
+  console.log(`   reporter: ${report.reporterDisplayName || (report.reporterUid ? `uid ${report.reporterUid}` : 'unknown')}`);
+  console.log(`   url: ${report.url || 'unknown'}`);
+  console.log(`   userAgent: ${report.userAgent || 'unknown'}`);
+  console.log(`   screenSize: ${report.screenSize || 'unknown'}${report.devicePixelRatio ? ` @${report.devicePixelRatio}x` : ''} viewport: ${report.viewport || 'unknown'}`);
   if (report.state) console.log(`   state: ${report.state}`);
-  console.log(`   ${report.userAgent || ''} ${report.viewport || ''}`);
   console.log('');
 }
 

@@ -1,4 +1,4 @@
-import { withAuth } from '../lib/anonAuth'
+import { withAuth, anonUid } from '../lib/anonAuth'
 /**
  * In-app bug reporting, the same pattern as the other apps (Cinema Roll ->
  * Meal Hat -> Thunderstoner): a small always-visible button, a plain textarea,
@@ -63,12 +63,25 @@ const flushStash = async (): Promise<void> => {
   if (sent) writeStash(stash.slice(sent))
 }
 
-const buildReport = (transcript: string, state: Record<string, unknown>): Report => ({
+// reporterUid / reporterDisplayName / screenSize (with the url and
+// devicePixelRatio already here) are what fetch-bug-reports prints - the
+// shape the hub games adopted 2026-09-11. Blockout has no sign-in of any
+// kind, so the name is always null and the uid is the anonymous session's,
+// which is still stable per browser. Captured at build time so a stashed
+// report carries the session it was filed under.
+export const buildReport = (
+  transcript: string,
+  state: Record<string, unknown>,
+  reporterUid: string | null,
+): Report => ({
   transcript,
   clientCreatedAt: Date.now(),
+  reporterUid,
+  reporterDisplayName: null,
   url: window.location.href,
   userAgent: navigator.userAgent,
   viewport: `${window.innerWidth}x${window.innerHeight}`,
+  screenSize: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
   devicePixelRatio: window.devicePixelRatio || 1,
   online: navigator.onLine,
   // Stringified so Firebase can't silently drop empty-object keys.
@@ -142,14 +155,17 @@ export const setupBugReport = (
       send.textContent = 'Sending…'
       error.hidden = true
 
-      const report = buildReport(text, snapshot())
-      post(report).then(
-        () => {
+      void (async () => {
+        // Identity is best-effort: offline with no session yet there is
+        // nobody to name, and the report must still be built so it can be
+        // stashed.
+        const report = buildReport(text, snapshot(), await anonUid().catch(() => null))
+        try {
+          await post(report)
           sending = false
           finish('Sent — thanks!')
           void flushStash()
-        },
-        (err: Error) => {
+        } catch (err) {
           sending = false
           send.textContent = 'Send report'
           if (!navigator.onLine) {
@@ -160,11 +176,11 @@ export const setupBugReport = (
             finish('Saved — it’ll send when you’re back online.')
           } else {
             // Keep the text; they just typed it and it exists nowhere else.
-            error.textContent = err.message || 'Could not send that report.'
+            error.textContent = (err as Error).message || 'Could not send that report.'
             error.hidden = false
           }
-        },
-      )
+        }
+      })()
     })
 
     textarea.focus()
