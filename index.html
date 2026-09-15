@@ -12,7 +12,25 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      `black`, NOT `black-translucent`. Measured on Matt's iPhone 16 Pro
+      (402x874 CSS) on 2026-09-15, off four screenshots of Commonwealth: the
+      app was drawn from the very top of the screen, but its viewport was
+      only 812px tall - 62px short, exactly the status bar - so the bottom
+      62px of the screen was outside the layout. Nothing could be put there;
+      iOS just filled it with the page background, which read as a band of
+      dead space at the bottom of every screen. That is what
+      black-translucent does to a standalone web app: it hands you the screen
+      MINUS the status bar and then draws you from y=0 anyway. `black` lays
+      the app out below the status bar, so the viewport reaches the bottom of
+      the screen and the 62px comes back. src/utils/viewport.js measures this
+      at runtime.
+
+      iOS reads this at launch: after the app updates, force-quit it and open
+      it again. If the band survives that, remove the home-screen icon and
+      add it from Safari again.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Blockout" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>

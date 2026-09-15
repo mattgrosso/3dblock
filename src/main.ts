@@ -13,6 +13,11 @@ import { recordPlay } from './game/plays'
 import { setupInstall } from './install'
 import { setupAutoUpdate } from './appUpdate'
 import { buildStamp } from './buildStamp'
+import { watchViewport } from './utils/viewport';
+
+// Before the first paint: how much of the screen the layout actually
+// reaches. See utils/viewport - this is the dead-band seatbelt.
+watchViewport();
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 

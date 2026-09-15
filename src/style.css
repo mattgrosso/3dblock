@@ -4,6 +4,20 @@
   --panel: rgba(14, 19, 30, 0.78);
   --edge: rgba(110, 168, 255, 0.22);
   color-scheme: dark;
+
+  /* Every safe-area inset in this app goes through these two, so one */
+  /* measurement can switch one of them off. See utils/viewport. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* The seatbelt for the dead band at the bottom of the phone. If the layout */
+/* viewport stops short of the screen (iOS hands a standalone app the screen */
+/* minus the status bar, then draws it from the top), the home indicator is */
+/* not over the app at all - so reserving room for it just spends height we */
+/* were not given in the first place. */
+html[data-viewport='clipped'] {
+  --safe-bottom: 0px;
 }
 
 * { box-sizing: border-box; }
@@ -296,7 +310,7 @@ kbd {
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  padding: 10px 12px calc(10px + var(--safe-bottom));
   /* The pad itself is a passthrough; only its buttons take input. */
   pointer-events: none;
   touch-action: none;
@@ -376,7 +390,7 @@ kbd {
       'dpad . rotations';
     align-items: end;
     gap: 14px;
-    padding: 16px 22px calc(16px + env(safe-area-inset-bottom));
+    padding: 16px 22px calc(16px + var(--safe-bottom));
   }
 
   .has-touchpad .touchpad__dpad { grid-area: dpad; gap: 8px; }
@@ -502,7 +516,7 @@ kbd {
 .bug-trigger {
   position: fixed;
   left: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(14px + var(--safe-bottom));
   z-index: 1250;
   width: 44px;
   height: 44px;
@@ -524,7 +538,7 @@ kbd {
 
 /* The touch pad owns the bottom edge on phones; sit just above it. */
 .has-touchpad .bug-trigger {
-  bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(190px + var(--safe-bottom));
 }
 
 .bug-backdrop {
