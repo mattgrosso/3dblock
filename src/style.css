@@ -8,6 +8,13 @@
   /* Every safe-area inset in this app goes through these two, so one */
   /* measurement can switch one of them off. See utils/viewport. */
   --safe-top: env(safe-area-inset-top, 0px);
+  /* iOS 26+ paints a Liquid Glass band over the top edge, and the safe-area
+     inset does NOT grow to cover it: measured on an iPhone 16 Pro the band
+     reaches ~96pt while env(safe-area-inset-top) reports 59. Padding by the
+     inset alone therefore still leaves header content inside the band.
+     30px is the settled value - enough to clear it where it actually shows,
+     without the dead space a larger figure left at the top. */
+  --band-top: calc(var(--safe-top) + 30px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -42,7 +49,7 @@ html, body {
   /* Installed on an iPhone the page runs under the status bar / Dynamic
      Island, and iOS 26+ paints a Liquid Glass blur band over that strip;
      the top inset keeps the stats row below it. */
-  padding: calc(16px + var(--safe-top)) 16px 16px;
+  padding: var(--band-top) 16px 16px;
   display: grid;
   grid-template-areas:
     "stats next"
@@ -128,7 +135,7 @@ kbd {
 /* Narrow windows: the stats and preview panels stop fitting side by side.
    three.js writes the canvas size inline, so the override has to be forced. */
 @media (max-width: 760px) {
-  .hud { padding: calc(10px + var(--safe-top)) 10px 10px; gap: 8px; }
+  .hud { padding: var(--band-top) 10px 10px; gap: 8px; }
   .panel { padding: 8px 10px; }
   .panel--stats { gap: 14px; }
   .stat b { font-size: 18px; }
