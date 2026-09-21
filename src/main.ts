@@ -5,6 +5,7 @@ import { SETUPS } from './game/sets'
 import { loadConfig, openSetup, type GameConfig } from './ui/setup'
 import { setupTouchControls, supportsTouch } from './ui/touch'
 import { setupBugReport } from './ui/bugreport'
+import { checkResolutions } from './ui/bugResolutions'
 import { DEFAULT_THEME, resolveTheme } from './render/themes'
 import { Sound } from './sound'
 import { bestOf, loadScores, recordScore, type ScoreEntry } from './game/highscores'
@@ -320,6 +321,9 @@ setupBugReport(
   // Pause before the panel opens, or the piece keeps falling while they type.
   () => { if (game.phase === 'playing' && !game.paused) togglePause() },
 )
+// A fix notice for a bug filed from this browser, if one is waiting (see
+// ui/bugResolutions.ts). Same pause as the report panel.
+void checkResolutions(() => { if (game.phase === 'playing' && !game.paused) togglePause() })
 if (supportsTouch()) setupTouchControls(() => game, togglePause)
 if (!stored) openSetup(config, start)
 

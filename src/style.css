@@ -637,3 +637,22 @@ html,
 body {
   touch-action: manipulation;
 }
+
+/* The reply to a bug report (2026-09-21): the bug panel, with one card per
+   fixed report. */
+.bug-resolution-panel { max-height: 85vh; overflow-y: auto; }
+.bug-resolution-panel__thanks { margin: 0; font-size: 13px; opacity: 0.85; }
+.bug-resolution-notice {
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bug-resolution-notice p { margin: 0; }
+.bug-resolution-notice__quote { font-style: italic; font-size: 13px; opacity: 0.85; }
+.bug-resolution-notice__section { font-size: 14px; }
+.bug-resolution-notice__label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 2px; }
+.bug-resolution-notice__date { font-size: 11px; opacity: 0.8; }

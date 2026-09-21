@@ -126,6 +126,17 @@ export function uidFromIdToken (token: string): string | null {
  * Read from the cached token even when stale - the uid survives a refresh -
  * so this costs no network unless there is no session at all yet.
  */
+/**
+ * The uid of a session that already exists, or null - never mints one. For
+ * things that only make sense if this browser has filed a report before
+ * (the resolution notice), where creating an account just to look would be
+ * a waste of a uid.
+ */
+export function cachedAnonUid (): string | null {
+  const cached = read()
+  return cached ? uidFromIdToken(cached.idToken) : null
+}
+
 export async function anonUid (): Promise<string | null> {
   const cached = read()
   if (cached) return uidFromIdToken(cached.idToken)
