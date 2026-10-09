@@ -29,7 +29,6 @@ export class Renderer {
     this.game = game
     this.theme = theme
     this.showGuide = showGuide
-    const { width, height, depth } = game.pit
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -38,20 +37,13 @@ export class Renderer {
     this.scene.background = new THREE.Color(theme.background)
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500)
-    // Backed off far enough that the whole mouth is comfortably in frame.
-    const cameraDistance = Math.max(width, height) * 1.35 + 2
-    this.camera.position.set(0, 0, cameraDistance)
-
     // Fog measured from the camera rather than from the pit, so a deep pit
     // doesn't wash its own floor out to nothing. It starts past halfway down
     // and never fully reaches the floor, which reads as distance without
-    // hiding what you've stacked.
-    this.scene.fog = new THREE.Fog(
-      theme.background,
-      cameraDistance + depth * 0.55,
-      cameraDistance + depth * 1.7,
-    )
-    this.camera.lookAt(0, 0, -depth * 0.5)
+    // hiding what you've stacked. Its distances are set with the camera's,
+    // in resize().
+    this.scene.fog = new THREE.Fog(theme.background, 1, 2)
+    this.placeCamera(1)
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.55))
     const key = new THREE.DirectionalLight(0xffffff, 1.1)
@@ -260,11 +252,39 @@ export class Renderer {
     }
   }
 
+  /**
+   * Backs the camera off just far enough for the pit's mouth to fill a set
+   * share of the window, whichever way round the window is.
+   *
+   * It used to sit at a fixed distance (1.35x the mouth), which framed the
+   * well at about 60% of the height on every screen: small on a desktop,
+   * and on an upright iPad - where the WIDTH is the short side - nearly
+   * edge to edge, under the Next panel (Matt, 2026-10-09: "all of the games
+   * need to look nicer on desktop and tablet").
+   */
+  private placeCamera(aspect: number): void {
+    const { width, height, depth } = this.game.pit
+    // 0.74 leaves the stats, Next and keys panels room round the edge.
+    const fill = 0.74
+    const halfTan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))
+    const rim = 0.4
+    const distance = Math.max(
+      (height + rim) / (2 * halfTan * fill),
+      (width + rim) / (2 * halfTan * fill * aspect),
+    )
+    this.camera.position.set(0, 0, distance)
+    this.camera.lookAt(0, 0, -depth * 0.5)
+    const fog = this.scene.fog as THREE.Fog
+    fog.near = distance + depth * 0.55
+    fog.far = distance + depth * 1.7
+  }
+
   private resize(): void {
     const width = window.innerWidth
     const height = window.innerHeight
     this.renderer.setSize(width, height)
     this.camera.aspect = width / height
+    this.placeCamera(this.camera.aspect)
     this.camera.updateProjectionMatrix()
   }
 
