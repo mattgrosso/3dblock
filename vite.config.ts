@@ -45,6 +45,9 @@ export default defineConfig({
         // so the whole thing can be precached and it runs offline outright -
         // no runtime caching rules, no network in the play path at all.
         globPatterns: ['**/*.{js,css,html,png,ico,webmanifest,wav}'],
+        // Except the iOS launch images: iOS fetches those itself when the app
+        // is added to the home screen, so precaching them buys nothing.
+        globIgnores: ['launch/**'],
       },
     }),
   ],

@@ -67,6 +67,9 @@ hud.innerHTML = `
   </div>
 `
 app.appendChild(hud)
+// The launch splash (index.html) sits inside #app until now. appendChild
+// doesn't replace it the way a framework mount would, so take it out by hand.
+document.querySelector('.launch-splash')?.remove()
 
 const el = (id: string) => document.getElementById(id)!
 
