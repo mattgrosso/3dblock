@@ -9,6 +9,7 @@
  *   right stick          tumble the piece: up/down over the horizontal axis,
  *                        left/right around the vertical one (a flick per turn)
  *   LB / RB              spin anticlockwise / clockwise
+ *   X / Y / B            turn on each axis (these work under any Steam Input layout)
  *   A                    drop
  *   Start                pause      View / Select   setup
  * In menus: d-pad to choose, A to pick, Y for the second button.
