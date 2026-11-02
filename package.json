@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "deploy": "yarn build && sh scripts/deploy.sh",
     "fetch-bug-reports": "node scripts/fetch-bug-reports.mjs",
-    "resolve-bug-report": "node scripts/resolve-bug-report.mjs"
+    "resolve-bug-report": "node scripts/resolve-bug-report.mjs",
+    "e2e:pad": "node scripts/pad-e2e.mjs"
   },
   "dependencies": {
     "three": "^0.169.0"

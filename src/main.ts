@@ -15,6 +15,7 @@ import { setupInstall } from './install'
 import { setupAutoUpdate } from './appUpdate'
 import { buildStamp } from './buildStamp'
 import { watchViewport } from './utils/viewport';
+import { attachGamepad, GLYPHS, type PadAction, type PadKind } from './ui/gamepad'
 
 // Before the first paint: how much of the screen the layout actually
 // reaches. See utils/viewport - this is the dead-band seatbelt.
@@ -252,6 +253,115 @@ window.addEventListener('keydown', (event) => {
   event.preventDefault()
 })
 
+// ---- Controller (see ui/gamepad.ts for the layout) ----
+
+const keysPanel = document.querySelector<HTMLElement>('.panel--keys')!
+const keyHints = keysPanel.innerHTML
+let hadTouchpad = false
+/** A pad replaces the on-screen pad and the key hints with its own hints, in its own labels. */
+const showPad = (kind: PadKind | null): void => {
+  const body = document.body.classList
+  if (kind) {
+    hadTouchpad ||= body.contains('has-touchpad')
+    body.remove('has-touchpad')
+    const g = GLYPHS[kind]
+    keysPanel.innerHTML = `
+      <div><kbd>✥</kbd> move &middot; <kbd>R</kbd> stick tumble &middot; <kbd>${g.lb}</kbd><kbd>${g.rb}</kbd> spin &middot; <kbd>${g.a}</kbd> drop</div>
+      <div><kbd>${g.start}</kbd> pause &middot; <kbd>${g.view}</kbd> setup</div>`
+  } else {
+    if (hadTouchpad) body.add('has-touchpad')
+    keysPanel.innerHTML = keyHints
+  }
+  body.toggle('has-gamepad', !!kind)
+  document.body.dataset.pad = kind ?? ''
+  window.dispatchEvent(new Event('resize'))
+}
+
+/**
+ * Menus by d-pad: up/down walks the buttons and selects in page order,
+ * left/right changes a select (or steps sideways), A presses.
+ */
+const menuNav = (root: HTMLElement, action: PadAction): void => {
+  const items = Array.from(root.querySelectorAll<HTMLElement>('button, select, input, a[href]'))
+    .filter((e) => e.offsetParent !== null && !(e as HTMLButtonElement).disabled)
+  if (!items.length) return
+  const i = items.indexOf(document.activeElement as HTMLElement)
+  const focus = (j: number): void => {
+    const target = items[(j + items.length) % items.length]!
+    target.focus()
+    target.scrollIntoView({ block: 'nearest' })
+  }
+  const current = items[i]
+  switch (action) {
+    case 'up': focus(i < 0 ? 0 : i - 1); break
+    case 'down': focus(i < 0 ? 0 : i + 1); break
+    case 'left':
+    case 'right': {
+      const step = action === 'left' ? -1 : 1
+      if (current instanceof HTMLSelectElement) {
+        const next = current.selectedIndex + step
+        if (next >= 0 && next < current.options.length) {
+          current.selectedIndex = next
+          current.dispatchEvent(new Event('change', { bubbles: true }))
+        }
+      } else focus(i < 0 ? 0 : i + step)
+      break
+    }
+    case 'a':
+      if (!current) focus(0)
+      else if (current instanceof HTMLSelectElement) focus(i + 1)
+      else if (!(current instanceof HTMLInputElement)) current.click()
+      break
+  }
+}
+
+// The press that ends a game is usually a drop; it mustn't also be "Play again".
+// So the overlay ignores the pad for a moment after it appears.
+let overlayShownAt = 0
+const OVERLAY_GRACE_MS = 700
+new MutationObserver(() => { if (!el('overlay').hidden) overlayShownAt = performance.now() })
+  .observe(el('overlay'), { attributes: true, attributeFilter: ['hidden'] })
+
+const onPad = (action: PadAction): void => {
+  void sound.unlock()
+  if (document.querySelector('.bug-backdrop, .install-backdrop')) return
+
+  const setup = document.querySelector<HTMLElement>('.overlay.setup')
+  if (setup) {
+    if (action === 'start') setup.querySelector<HTMLButtonElement>('#setup-start')?.click()
+    else menuNav(setup, action)
+    return
+  }
+
+  const overlay = el('overlay')
+  if (!overlay.hidden) {
+    if (performance.now() - overlayShownAt < OVERLAY_GRACE_MS) return
+    if (action === 'start' && game.paused) togglePause()
+    else if (action === 'y' || action === 'view') el('overlay-setup').click()
+    else if (action === 'a' && !overlay.contains(document.activeElement)) el('overlay-primary').click()
+    else menuNav(overlay, action)
+    return
+  }
+
+  if (game.phase !== 'playing') return
+  if (action === 'start') { togglePause(); return }
+  if (action === 'view') { if (!game.paused) togglePause(); openSetup(config, start); return }
+  if (game.paused) return
+  switch (action) {
+    case 'left': game.move(-1, 0); break
+    case 'right': game.move(1, 0); break
+    case 'up': game.move(0, -1); break
+    case 'down': game.move(0, 1); break
+    case 'a': game.hardDrop(); break
+    case 'spinLeft': game.rotate('z', -1); break
+    case 'spinRight': game.rotate('z', 1); break
+    case 'tumbleUp': game.rotate('x', 1); break
+    case 'tumbleDown': game.rotate('x', -1); break
+    case 'tumbleLeft': game.rotate('y', -1); break
+    case 'tumbleRight': game.rotate('y', 1); break
+  }
+}
+
 // First visit gets the setup screen; after that it starts straight into
 // whatever you last played, since that's what you almost always want.
 const stored = loadConfig()
@@ -328,6 +438,8 @@ setupBugReport(
 // ui/bugResolutions.ts). Same pause as the report panel.
 void checkResolutions(() => { if (game.phase === 'playing' && !game.paused) togglePause() })
 if (supportsTouch()) setupTouchControls(() => game, togglePause)
+// After the touch pad, so a pad already connected can take its place.
+attachGamepad(onPad, showPad)
 if (!stored) openSetup(config, start)
 
 // The service worker autoUpdates, but the PAGE keeps running whatever build

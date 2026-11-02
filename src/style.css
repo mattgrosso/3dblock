@@ -656,3 +656,13 @@ body {
 .bug-resolution-notice__section { font-size: 14px; }
 .bug-resolution-notice__label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-bottom: 2px; }
 .bug-resolution-notice__date { font-size: 11px; opacity: 0.8; }
+
+/* ---- Controller ----
+   A pad connected (ui/gamepad.ts) hides the on-screen pad - a Steam Deck has
+   a touchscreen, so it would otherwise cover the well - and shows where the
+   d-pad's focus is, since there is no pointer to say so. */
+.has-gamepad .touchpad { display: none; }
+.has-gamepad :is(button, select, input, a):focus {
+  outline: 3px solid #6ea8ff;
+  outline-offset: 2px;
+}
