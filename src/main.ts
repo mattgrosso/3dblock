@@ -266,7 +266,7 @@ const showPad = (kind: PadKind | null): void => {
     body.remove('has-touchpad')
     const g = GLYPHS[kind]
     keysPanel.innerHTML = `
-      <div><kbd>✥</kbd> move &middot; <kbd>${g.x}</kbd><kbd>${g.y}</kbd><kbd>${g.b}</kbd> turn &middot; <kbd>${g.a}</kbd> drop</div>
+      <div><kbd>✥</kbd> move &middot; <kbd>${g.x}</kbd><kbd>${g.a}</kbd><kbd>${g.b}</kbd> turn &middot; <kbd>${g.y}</kbd> drop</div>
       <div><kbd>R</kbd> stick tumble &middot; <kbd>${g.lb}</kbd><kbd>${g.rb}</kbd> spin &middot; <kbd>${g.start}</kbd> pause &middot; <kbd>${g.view}</kbd> setup</div>`
   } else {
     if (hadTouchpad) body.add('has-touchpad')
@@ -352,14 +352,16 @@ const onPad = (action: PadAction): void => {
     case 'right': game.move(1, 0); break
     case 'up': game.move(0, -1); break
     case 'down': game.move(0, 1); break
-    case 'a': game.hardDrop(); break
-    // The face buttons turn it too, one axis each, the same way round as the
-    // keyboard's A/S/D. They reach the game whatever layout Steam Input has
-    // chosen, which the right stick and bumpers don't (Matt on his Deck,
-    // 2026-11-02: "there was no way to rotate the blocks").
+    // Three face buttons turn it, one axis each, and the top one drops. They
+    // reach the game whatever layout Steam Input has chosen, which the right
+    // stick and bumpers don't (Matt on his Deck, 2026-11-02: "there was no
+    // way to rotate the blocks"). Which three: on a PlayStation pad square,
+    // cross and circle turn and triangle drops (Matt, 2026-11-03: "the X
+    // should be one of the rotate buttons ... triangle should be the drop").
     case 'x': game.rotate('x', 1); break
-    case 'y': game.rotate('y', 1); break
+    case 'a': game.rotate('y', 1); break
     case 'b': game.rotate('z', 1); break
+    case 'y': game.hardDrop(); break
     case 'spinLeft': game.rotate('z', -1); break
     case 'spinRight': game.rotate('z', 1); break
     case 'tumbleUp': game.rotate('x', 1); break

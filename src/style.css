@@ -666,3 +666,29 @@ body {
   outline: 3px solid #6ea8ff;
   outline-offset: 2px;
 }
+
+/* A wide, short screen - the Steam Deck docked to a TV is 1280x800 scaled
+   up for the couch - held the setup screen as one 960px column in a 667px
+   window: it opened scrolled part-way down and ran off both ends (Matt,
+   2026-11-03: "it doesn't fit on the screen ... it's all too big"). Here it
+   is two columns: the presets on the left, the settings, boards and Play on
+   the right, nothing to scroll. Phones and tall windows keep the column. */
+@media (min-width: 880px) and (max-height: 760px) {
+  .setup { place-content: center; padding: 12px 16px; }
+  .setup__panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 28px;
+    align-content: start;
+    width: min(920px, 100%);
+    padding: 14px 24px 12px;
+  }
+  .setup__panel > * { grid-column: 2; }
+  .setup__panel h1, .setup__panel > p.muted:first-of-type { grid-column: 1 / -1; }
+  .setup__panel h1 { font-size: 24px; }
+  .setup__panel > p.muted:first-of-type { margin-bottom: 10px; }
+  .setup__presets { grid-column: 1; grid-row: 3 / span 12; align-self: start; margin-bottom: 0; }
+  .setup__note { min-height: 0; margin: 2px 0 8px; }
+  .setup__scores { margin-bottom: 10px; }
+  .setup__swatches { margin: -4px 0 8px; }
+}

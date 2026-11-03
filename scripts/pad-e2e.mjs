@@ -62,9 +62,9 @@ a = await at(); await stick(page, 'right', [0, -1]); b = await at()
 ok(a.cubes !== b.cubes, 'right stick up tumbles it')
 a = await at(); await stick(page, 'right', [1, 0]); b = await at()
 ok(a.cubes !== b.cubes, 'right stick right tumbles it the other way')
-for (const btn of ['X', 'Y', 'B']) { a = await at(); await press(page, btn); b = await at(); ok(a.cubes !== b.cubes, `${btn} turns the piece`) }
-a = await at(); await press(page, 'A'); await page.waitForTimeout(600); b = await at()
-ok(b.played > a.played, 'A drops the piece', `${a.played}→${b.played}`)
+for (const btn of ['X', 'A', 'B']) { a = await at(); await press(page, btn); b = await at(); ok(a.cubes !== b.cubes, `${btn} turns the piece`) }
+a = await at(); await press(page, 'Y'); await page.waitForTimeout(600); b = await at()
+ok(b.played > a.played, 'Y drops the piece', `${a.played}→${b.played}`)
 
 console.log('Pause and menus')
 await press(page, 'Start')
