@@ -9,6 +9,9 @@ set -e
 # day, an installed copy would keep booting the old build long after a deploy.
 # They go up with no-cache so the update check actually reaches the origin.
 
+# The Mac's arm64 build of the aws CLI; the x86 one in /usr/local/bin dies "Bad CPU type".
+PATH="$HOME/aws-cli:$PATH"
+
 BUCKET=s3://aroundtableround-3dblock
 DISTRIBUTION=E26TGWNT5TCXV1
 PROFILE=personal-deploy
